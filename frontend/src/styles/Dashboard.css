@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Layout */
+.dashboard-container {
+  @apply min-h-screen flex bg-[#0B1C2C] text-white;
+}
+
+.sidebar {
+  @apply w-64 bg-[#081521] p-6 hidden md:flex flex-col justify-between;
+}
+
+.main {
+  @apply flex-1 p-6 md:p-10;
+}
+
+/* Header */
+.header {
+  @apply flex justify-between items-center mb-8;
+}
+
+.user {
+  @apply flex items-center gap-4;
+}
+
+.avatar {
+  @apply w-12 h-12 bg-gray-400 rounded-full;
+}
+
+.welcome {
+  @apply text-sm opacity-70;
+}
+
+.notif {
+  @apply relative;
+}
+
+.bell {
+  @apply w-8 h-8 bg-gray-600 rounded-full;
+}
+
+.dot {
+  @apply absolute top-0 right-0 w-3 h-3 bg-orange-500 rounded-full;
+}
+
+/* Sections */
+.section {
+  @apply mb-8;
+}
+
+.row {
+  @apply flex justify-between mb-4;
+}
+
+/* Active Project */
+.active-project {
+  @apply bg-gradient-to-r from-cyan-400 to-blue-500 p-6 rounded-2xl mb-8 text-black;
+}
+
+.project-card {
+  @apply bg-[#083344] text-white px-4 py-3 rounded-xl flex justify-between;
+}
+
+/* Cards */
+.grid {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.card {
+  @apply bg-[#13293D] p-6 rounded-xl text-center;
+}
+
+.list-card {
+  @apply bg-[#13293D] p-5 rounded-xl flex justify-between items-center mb-4;
+}
+
+/* Badges */
+.badge {
+  @apply bg-green-600 px-3 py-1 rounded-full text-sm;
+}
+
+.badge.green {
+  @apply bg-green-700;
+}
+
+/* Sidebar */
+.logo {
+  @apply text-xl font-bold mb-10;
+}
+
+.nav p {
+  @apply opacity-50 mb-3 cursor-pointer;
+}
+
+.nav .active {
+  @apply opacity-100;
+}
