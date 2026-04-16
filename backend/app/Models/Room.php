@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
+
+class Room extends Model
+{
+    protected $fillable = [
+        'created_by',
+        'project_theme',
+        'room_code',
+        'roles',
+        'productivity_windows',
+        'environments',
+        'max_per_group',
+        'number_of_groups',
+        'status',
+    ];
+
+    protected $casts = [
+        'roles' => 'array',
+        'productivity_windows' => 'array',
+        'environments' => 'array',
+    ];
+
+    public static function generateUniqueCode(): string
+    {
+        do {
+            $code = Str::upper(Str::random(6));
+        } while (self::query()->where('room_code', $code)->exists());
+
+        return $code;
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function members(): HasMany
+    {
+        return $this->hasMany('App\\Models\\RoomMember');
+    }
+}
