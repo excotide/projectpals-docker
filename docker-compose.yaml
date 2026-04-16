@@ -8,7 +8,8 @@ services:
     volumes:
       - ./backend:/var/www/html
     depends_on:
-      - db
+      db:
+        condition: service_healthy   # ← update ini, tunggu Oracle ready dulu
     networks:
       - projectpals
 
@@ -57,18 +58,23 @@ services:
       - projectpals
 
   db:
-    image: mysql:8.4
+    image: gvenzl/oracle-free:latest
     container_name: projectpals-db
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: backend
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: laravel
-      MYSQL_PASSWORD: laravel
+      ORACLE_PASSWORD: oracle123        # password untuk SYSTEM
+      APP_USER: laravel                 # auto-bikin user khusus
+      APP_USER_PASSWORD: laravel123
     ports:
-      - "3306:3306"
+      - "1523:1521"
     volumes:
-      - dbdata:/var/lib/mysql
+      - dbdata:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 90s                 # Oracle butuh waktu startup lebih lama
     networks:
       - projectpals
 
