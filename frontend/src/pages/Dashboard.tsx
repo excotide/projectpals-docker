@@ -160,7 +160,7 @@ export default function Dashboard() {
           <h3>Quick Access</h3>
           <div className="grid">
             <button className="card action-card" onClick={() => navigate("/create-room")}>🚀 Create Room</button>
-            <div className="card">👥 Join Room</div>
+            <button className="card action-card" onClick={() => navigate("/join-room")}>👥 Join Room</button>
           </div>
         </div>
 

@@ -15,5 +15,7 @@ Route::prefix('auth')->group(function (): void {
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {
+    Route::get('/rooms/my-rooms', [RoomController::class, 'myRooms']);
+    Route::get('/rooms/{roomCode}', [RoomController::class, 'showByCode']);
     Route::post('/rooms', [RoomController::class, 'store']);
 });

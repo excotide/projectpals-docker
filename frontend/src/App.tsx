@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import type { ReactNode } from "react"
 import AuthPage from "./pages/AuthPage"
 import CreateRoom from "./pages/CreateRoom"
+import JoinRoom from "./pages/JoinRoom"
 import LandingPage from "./pages/LandingPage"
 import Dashboard from "./pages/Dashboard"
 
@@ -35,6 +36,14 @@ export default function App() {
           element={(
             <RequireAuth>
               <CreateRoom />
+            </RequireAuth>
+          )}
+        />
+        <Route
+          path="/join-room"
+          element={(
+            <RequireAuth>
+              <JoinRoom />
             </RequireAuth>
           )}
         />

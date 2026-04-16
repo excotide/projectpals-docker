@@ -1,4 +1,5 @@
-import { useState, CSSProperties, ReactNode } from "react";
+import { useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
 type RoleType = "primary" | "backup";
@@ -71,7 +72,7 @@ const STEPS: Record<string, Step> = {
 };
 
 function ProgressDots({ step }: { step: Step }) {
-  const map = { role: 0, hours: 1 };
+  const map: Partial<Record<Step, number>> = { role: 0, hours: 1 };
   const idx = map[step] ?? -1;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -334,7 +335,7 @@ export default function JoinRoom() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      {["primary", "backup"].map((type) => (
+                      {ROLE_TYPES.map((type) => (
                         <button
                           key={type}
                           onClick={() => assignRole(r.id, type)}
@@ -506,3 +507,5 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: "inherit",
   },
 };
+
+const ROLE_TYPES: RoleType[] = ["primary", "backup"];
