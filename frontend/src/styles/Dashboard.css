@@ -156,6 +156,26 @@
   margin-bottom: 14px;
 }
 
+.room-link-card {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.room-link-card:hover {
+  transform: translateY(-2px);
+  background: #18354f;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+}
+
+.room-link-card:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 /* Badges */
 .badge {
   background: #16a34a;

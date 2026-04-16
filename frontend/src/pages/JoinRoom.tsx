@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
 type RoleType = "primary" | "backup";
@@ -18,42 +19,27 @@ interface TimeSlot {
   range: string;
 }
 
-const roles: Role[] = [
-  {
-    id: "fe",
-    name: "Front-end",
-    sub: "UI Implementation & UX Logic",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-        <polyline points="16 18 22 12 16 6" />
-        <polyline points="8 6 2 12 8 18" />
-      </svg>
-    ),
-  },
-  {
-    id: "be",
-    name: "Back-end",
-    sub: "Architecture & Data Systems",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    id: "ux",
-    name: "UI/UX",
-    sub: "Visual Design & Prototype",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
-      </svg>
-    ),
-  },
+const ROLE_ICONS: ReactNode[] = [
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </svg>
+  ),
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="4" />
+    </svg>
+  ),
 ];
 
 const times: TimeSlot[] = [
@@ -113,15 +99,152 @@ function SidebarItem({ children, active = false }: { children: ReactNode; active
 }
 
 export default function JoinRoom() {
+  const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [step, setStep] = useState<Step>(STEPS.LANDING);
   const [code, setCode] = useState<string>("");
   const [roleType, setRoleType] = useState<Record<string, RoleType>>({});
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [roomRoles, setRoomRoles] = useState<Role[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const go = (s: Step) => setStep(s);
 
-  const submit = () => {
-    code.trim().length === 6 ? go(STEPS.ROLE) : go(STEPS.INVALID);
+  const submit = async () => {
+    setErrorMessage("");
+
+    if (code.trim().length !== 6) {
+      go(STEPS.INVALID);
+      return;
+    }
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${code.trim().toUpperCase()}/join-preview`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await response.json();
+
+      if (response.status === 401) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        setErrorMessage(payload?.message || "Room tidak ditemukan.");
+        go(STEPS.INVALID);
+        return;
+      }
+
+      const fetchedRoles = Array.isArray(payload?.data?.roles) ? payload.data.roles : [];
+      if (fetchedRoles.length < 2) {
+        setErrorMessage("Room belum memiliki minimal 2 role untuk proses matching.");
+        go(STEPS.INVALID);
+        return;
+      }
+
+      const mappedRoles: Role[] = fetchedRoles.map((roleName: string, index: number) => ({
+        id: `role-${index}`,
+        name: roleName,
+        sub: "Role defined by room owner",
+        icon: ROLE_ICONS[index % ROLE_ICONS.length],
+      }));
+
+      setRoleType({});
+      setSelectedTimes([]);
+      setRoomRoles(mappedRoles);
+      go(STEPS.ROLE);
+    } catch {
+      setErrorMessage("Gagal memuat data room. Coba lagi.");
+      go(STEPS.INVALID);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toWindowValue = (timeId: string): string | null => {
+    if (timeId === "mor") return "morning";
+    if (timeId === "aft") return "afternoon";
+    if (timeId === "eve") return "evening";
+    if (timeId === "fle") return "flexible";
+    return null;
+  };
+
+  const handleJoinRoom = async () => {
+    if (submitting || selectedTimes.length === 0) return;
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const primaryRoleId = Object.keys(roleType).find((id) => roleType[id] === "primary");
+    const backupRoleId = Object.keys(roleType).find((id) => roleType[id] === "backup");
+
+    const windows = selectedTimes
+      .map(toWindowValue)
+      .filter((value): value is string => value !== null);
+
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          roomCode: code.trim().toUpperCase(),
+          primaryRole: roomRoles.find((role) => role.id === primaryRoleId)?.name,
+          backupRole: roomRoles.find((role) => role.id === backupRoleId)?.name,
+          productivityWindows: windows,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (response.status === 401) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (response.status === 404) {
+        setErrorMessage(payload?.message || "Room tidak ditemukan.");
+        go(STEPS.INVALID);
+        return;
+      }
+
+      if (!response.ok) {
+        const firstValidation = payload?.errors ? Object.values(payload.errors)[0] : null;
+        const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
+        throw new Error(firstValidationMessage || payload?.message || "Gagal join room.");
+      }
+
+      go(STEPS.SUCCESS);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const assignRole = (id: string, type: RoleType) => {
@@ -151,6 +274,8 @@ export default function JoinRoom() {
     setCode("");
     setRoleType({});
     setSelectedTimes([]);
+    setRoomRoles([]);
+    setErrorMessage("");
   };
 
   const canProceedRole =
@@ -300,8 +425,11 @@ export default function JoinRoom() {
                   onBlur={(e) => (e.target.style.borderColor = "#ffffff12")}
                 />
                 <button onClick={submit} style={styles.btnCyan}>
-                  Join Room &nbsp;&#8594;
+                  {submitting ? "Checking..." : "Join Room \u2192"}
                 </button>
+                {errorMessage && (
+                  <p style={{ color: "#ff9aa8", fontSize: 12, marginTop: 10 }}>{errorMessage}</p>
+                )}
               </div>
             )}
 
@@ -314,7 +442,7 @@ export default function JoinRoom() {
                   Select one primary and one backup role.
                 </p>
 
-                {roles.map((r) => (
+                {roomRoles.map((r) => (
                   <div
                     key={r.id}
                     style={{
@@ -409,12 +537,19 @@ export default function JoinRoom() {
                 <div style={{ display: "flex", gap: 12 }}>
                   <button className="btn-ghost-hover" onClick={() => go(STEPS.ROLE)} style={styles.btnGhost}>Back</button>
                   <button
-                    onClick={() => selectedTimes.length > 0 && go(STEPS.SUCCESS)}
-                    style={{ ...styles.btnCyan, flex: 2, marginTop: 0, ...(selectedTimes.length > 0 ? {} : styles.btnDisabled) }}
+                    onClick={() => {
+                      if (selectedTimes.length > 0) {
+                        void handleJoinRoom();
+                      }
+                    }}
+                    style={{ ...styles.btnCyan, flex: 2, marginTop: 0, ...(selectedTimes.length > 0 && !submitting ? {} : styles.btnDisabled) }}
                   >
-                    Next &#8594;
+                    {submitting ? "Joining..." : "Next \u2192"}
                   </button>
                 </div>
+                {errorMessage && (
+                  <p style={{ color: "#ff9aa8", fontSize: 12, marginTop: 10 }}>{errorMessage}</p>
+                )}
               </div>
             )}
 
@@ -446,7 +581,7 @@ export default function JoinRoom() {
                 </div>
                 <p style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Invalid Code</p>
                 <p style={{ color: "#ffffff44", fontSize: 13, lineHeight: 1.7, marginBottom: 28, maxWidth: 300 }}>
-                  The room code could not be found in the ProjectPals registry. Please verify the code and try again.
+                  {errorMessage || "The room code could not be found in the ProjectPals registry. Please verify the code and try again."}
                 </p>
                 <button onClick={reset} style={{ ...styles.btnCyan, maxWidth: 280 }}>&#8635; Try Again</button>
                 <button style={{ ...resetBtn, color: "#ffffff22", fontSize: 12, marginTop: 10 }}>

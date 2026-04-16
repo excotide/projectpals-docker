@@ -43,6 +43,6 @@ class Room extends Model
 
     public function members(): HasMany
     {
-        return $this->hasMany('App\\Models\\RoomMember');
+        return $this->hasMany(RoomMember::class);
     }
 }

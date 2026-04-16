@@ -5,6 +5,7 @@ import CreateRoom from "./pages/CreateRoom"
 import JoinRoom from "./pages/JoinRoom"
 import LandingPage from "./pages/LandingPage"
 import Dashboard from "./pages/Dashboard"
+import RoomDetail from "./pages/RoomDetail"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem("auth_token")
@@ -44,6 +45,14 @@ export default function App() {
           element={(
             <RequireAuth>
               <JoinRoom />
+            </RequireAuth>
+          )}
+        />
+        <Route
+          path="/rooms/:roomCode"
+          element={(
+            <RequireAuth>
+              <RoomDetail />
             </RequireAuth>
           )}
         />

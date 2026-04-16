@@ -8,11 +8,21 @@ type AuthUser = {
   email: string;
 };
 
+type RoomItem = {
+  id: number;
+  project_theme: string;
+  room_code: string;
+  status: "open" | "matching" | "ongoing" | "closed";
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
+  const [rooms, setRooms] = useState<RoomItem[]>([]);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -62,7 +72,40 @@ export default function Dashboard() {
       }
     };
 
+    const loadMyRooms = async () => {
+      try {
+        setRoomsError("");
+
+        const response = await fetch(`${API_BASE_URL}/api/rooms/my-rooms`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (!response.ok) {
+          setRoomsError("Gagal memuat daftar room.");
+          return;
+        }
+
+        const payload = (await response.json()) as { data?: RoomItem[] };
+        setRooms(Array.isArray(payload.data) ? payload.data : []);
+      } catch {
+        setRoomsError("Gagal memuat daftar room.");
+      } finally {
+        setRoomsLoading(false);
+      }
+    };
+
     loadMe();
+    loadMyRooms();
   }, [API_BASE_URL, navigate]);
 
   const initials = useMemo(() => {
@@ -167,25 +210,53 @@ export default function Dashboard() {
         {/* Projects */}
         <div className="section">
           <div className="row">
-            <h3>{displayName}'s Projects Team</h3>
+            <h3>{displayName}'s Project Room</h3>
             <span>More Details →</span>
           </div>
 
-          <div className="list-card">
-            <div>
-              <h4>Owner Profile</h4>
-              <p>{displayEmail}</p>
+          {roomsLoading && (
+            <div className="list-card">
+              <div>
+                <h4>Loading rooms...</h4>
+                <p>Mengambil data dari API my-rooms.</p>
+              </div>
+              <span className="badge">SYNC</span>
             </div>
-            <span className="badge green">CONNECTED</span>
-          </div>
+          )}
 
-          <div className="list-card">
-            <div>
-              <h4>Mancingin</h4>
-              <p>Fullstack • 1 year</p>
+          {!roomsLoading && roomsError && (
+            <div className="list-card">
+              <div>
+                <h4>Room Unavailable</h4>
+                <p>{roomsError}</p>
+              </div>
+              <span className="badge">ERROR</span>
             </div>
-            <span className="badge green">COMPLETED</span>
-          </div>
+          )}
+
+          {!roomsLoading && !roomsError && rooms.length === 0 && (
+            <div className="list-card">
+              <div>
+                <h4>No Room Yet</h4>
+                <p>Belum ada room yang kamu buat.</p>
+              </div>
+              <span className="badge">EMPTY</span>
+            </div>
+          )}
+
+          {!roomsLoading && !roomsError && rooms.map((room) => (
+            <button
+              className="list-card room-link-card"
+              key={room.id}
+              onClick={() => navigate(`/rooms/${room.room_code}`)}
+            >
+              <div>
+                <h4>{room.project_theme}</h4>
+                <p>Code: {room.room_code}</p>
+              </div>
+              <span className="badge green">{room.status.toUpperCase()}</span>
+            </button>
+          ))}
         </div>
 
       </main>

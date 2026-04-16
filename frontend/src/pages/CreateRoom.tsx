@@ -303,15 +303,14 @@ const STEPS = [
 
 const TOTAL = STEPS.length;
 
-function generateRoomCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 export default function CreateRoom() {
   const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [step, setStep] = useState(1);
   const [screen, setScreen] = useState<Screen>("form");
-  const [roomCode] = useState(generateRoomCode);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [roomCode, setRoomCode] = useState("");
   const [data, setData] = useState<RoomData>({
     name: "",
     roles: [],
@@ -329,10 +328,56 @@ export default function CreateRoom() {
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    setErrorMessage("");
+
     if (step < TOTAL) { setStep(step + 1); return; }
-    // final step → success
-    setScreen("success");
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: data.name.trim(),
+          roles: data.roles,
+          maxPerGroup: data.maxPerGroup,
+          numGroups: data.numGroups,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (response.status === 401) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        const firstValidation = payload?.errors ? Object.values(payload.errors)[0] : null;
+        const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
+        throw new Error(firstValidationMessage || payload?.message || "Gagal membuat room.");
+      }
+
+      setRoomCode(payload?.data?.room_code ?? "");
+      setScreen("success");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -342,9 +387,15 @@ export default function CreateRoom() {
   const handleOk = () => setScreen("info");
   const handleClose = () => navigate("/dashboard");
   const handleDone = () => {
-    // reset or navigate
+    if (roomCode) {
+      navigate(`/rooms/${roomCode}`);
+      return;
+    }
+
     setStep(1);
     setScreen("form");
+    setErrorMessage("");
+    setRoomCode("");
     setData({ name: "", roles: [], maxPerGroup: 5, numGroups: 12 });
   };
 
@@ -411,6 +462,9 @@ export default function CreateRoom() {
 
         {/* Body */}
         <div className="cr-body">
+          {errorMessage && (
+            <div style={{ marginBottom: 12, color: "#ff9ea8", fontSize: 13 }}>{errorMessage}</div>
+          )}
           {step === 1 && <StepBasics data={data} onChange={update} key={1} />}
           {step === 2 && <StepRoles data={data} onChange={update} key={2} />}
           {step === 3 && <StepFinalize data={data} onChange={update} key={3} />}
@@ -424,12 +478,12 @@ export default function CreateRoom() {
           <button
             className={`cr-next-btn${step === TOTAL ? " create" : ""}`}
             onClick={handleNext}
-            disabled={!canNext()}
-            style={{ opacity: canNext() ? 1 : 0.45 }}
+            disabled={!canNext() || submitting}
+            style={{ opacity: canNext() && !submitting ? 1 : 0.45 }}
           >
             {step === TOTAL ? (
               <>
-                Create Room
+                {submitting ? "Creating..." : "Create Room"}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
                 </svg>
