@@ -30,4 +30,7 @@ RUN echo "instantclient,/opt/oracle/instantclient_21_15" | pecl install oci8 && 
 # ── Composer ──────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+COPY docker/php/conf.d/performance.ini /usr/local/etc/php/conf.d/99-performance.ini
+COPY docker/php-fpm/zz-www.conf /usr/local/etc/php-fpm.d/zz-www.conf
+
 WORKDIR /var/www/html

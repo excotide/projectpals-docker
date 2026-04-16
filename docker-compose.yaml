@@ -7,6 +7,8 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      - ./backend/docker/php/conf.d/performance.ini:/usr/local/etc/php/conf.d/99-performance.ini:ro
+      - ./backend/docker/php-fpm/zz-www.conf:/usr/local/etc/php-fpm.d/zz-www.conf:ro
     depends_on:
       db:
         condition: service_healthy   # ← update ini, tunggu Oracle ready dulu
@@ -54,6 +56,27 @@ services:
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     ports:
       - "5173:5173"
+    networks:
+      - projectpals
+
+  warmup:
+    image: curlimages/curl:8.8.0
+    container_name: projectpals-warmup
+    depends_on:
+      app:
+        condition: service_started
+      nginx:
+        condition: service_started
+    command: >
+      sh -c "
+      echo 'Warming up backend...';
+      for i in 1 2 3 4 5; do
+        curl -sS -o /dev/null http://nginx/up || true;
+        curl -sS -o /dev/null -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{}' http://nginx/api/auth/login || true;
+      done;
+      echo 'Warmup done.';
+      "
+    restart: 'no'
     networks:
       - projectpals
 

@@ -12,7 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->appendToGroup('api', \App\Http\Middleware\ForceJsonResponse::class);
+
+        $middleware->redirectGuestsTo(function ($request): ?string {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+
+            return '/';
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

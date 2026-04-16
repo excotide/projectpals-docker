@@ -8,7 +8,7 @@ Panduan ini menjelaskan cara menjalankan seluruh stack ProjectPals menggunakan D
 
 - `app`: PHP-FPM (Laravel backend)
 - `nginx`: web server untuk Laravel
-- `db`: MySQL 8.4
+- `db`: Oracle Free
 - `node`: Vite dev server untuk backend Laravel (port 5174)
 - `frontend`: React + Vite (port 5173)
 
@@ -27,17 +27,18 @@ Jalankan dari root project:
 Copy-Item .\backend\.env.example .\backend\.env
 ```
 
-Lalu ubah konfigurasi database di `backend/.env` agar terhubung ke container MySQL:
+Lalu ubah konfigurasi database di `backend/.env` agar terhubung ke container Oracle:
 
 ```env
 APP_URL=http://localhost:8000
 
-DB_CONNECTION=mysql
+DB_CONNECTION=oracle
 DB_HOST=db
-DB_PORT=3306
-DB_DATABASE=backend
+DB_PORT=1521
+DB_DATABASE=FREEPDB1
+DB_SERVICE_NAME=FREEPDB1
 DB_USERNAME=laravel
-DB_PASSWORD=laravel
+DB_PASSWORD=laravel123
 ```
 
 ### 2) Build dan jalankan semua container
@@ -64,7 +65,64 @@ docker compose exec app php artisan migrate
 - Laravel (via Nginx): http://localhost:8000
 - Frontend React (Vite): http://localhost:5173
 - Backend Vite dev server: http://localhost:5174
-- MySQL: localhost:3306
+- Oracle: localhost:1523
+
+## Pakai Oracle Lokal (di Laptop)
+
+Kalau kamu sudah punya Oracle lokal, backend di container tetap bisa pakai itu.
+
+Atur di `backend/.env`:
+
+```env
+DB_CONNECTION=oracle
+DB_HOST=host.docker.internal
+DB_PORT=1521
+DB_DATABASE=FREEPDB1
+DB_SERVICE_NAME=FREEPDB1
+DB_USERNAME=<user_oracle_kamu>
+DB_PASSWORD=<password_oracle_kamu>
+DB_CONNECT_TIMEOUT=5
+```
+
+Lalu restart app + nginx:
+
+```powershell
+docker compose up -d --force-recreate app nginx
+docker compose exec app php artisan optimize:clear
+docker compose exec app php artisan config:cache
+```
+
+Catatan:
+- `host.docker.internal` dipakai agar container bisa mengakses Oracle di host Windows.
+- Pastikan listener Oracle lokal aktif dan menerima koneksi dari Docker.
+
+## Deploy ke AWS (Ringkas)
+
+Disarankan pakai Amazon RDS for Oracle agar tidak perlu kelola DB server sendiri.
+
+Set environment production:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+DB_CONNECTION=oracle
+DB_HOST=<rds-endpoint>
+DB_PORT=1521
+DB_DATABASE=<service_name_or_sid>
+DB_SERVICE_NAME=<service_name>
+DB_USERNAME=<db_user>
+DB_PASSWORD=<db_password>
+DB_CONNECT_TIMEOUT=5
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+```
+
+Checklist deploy:
+- Security Group EC2/ECS/Lambda harus boleh akses RDS Oracle port 1521.
+- Jangan expose DB ke public internet kalau tidak perlu.
+- Simpan secret di AWS Secrets Manager / SSM Parameter Store.
+- Jalankan `php artisan config:cache` saat build/deploy.
 
 ## Perintah harian
 
@@ -73,6 +131,32 @@ docker compose exec app php artisan migrate
 ```powershell
 docker compose up -d
 ```
+
+## Checklist Benchmark Cepat
+
+Gunakan ini setiap selesai restart stack untuk memastikan backend tidak kembali lemot.
+
+1) Jalankan warm-up satu kali:
+
+```powershell
+docker compose up -d warmup
+```
+
+2) Cek health endpoint 5x:
+
+```powershell
+1..5 | ForEach-Object { curl.exe -s -o NUL -w "up code=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}`n" http://localhost:8000/up }
+```
+
+3) Cek endpoint auth tanpa token 5x (harus 401, bukan 302):
+
+```powershell
+1..5 | ForEach-Object { curl.exe -s -o NUL -w "me code=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}`n" http://localhost:8000/api/auth/me }
+```
+
+Target minimum dev lokal setelah warm-up:
+- `/up` dan `/api/auth/me` stabil di bawah ~1 detik.
+- Tidak ada status `504` di log nginx.
 
 ### Melihat log
 
@@ -129,10 +213,11 @@ docker compose exec app php artisan key:generate
 Pastikan nilai ini di `backend/.env`:
 
 - `DB_HOST=db`
-- `DB_PORT=3306`
-- `DB_DATABASE=backend`
+- `DB_PORT=1521`
+- `DB_DATABASE=FREEPDB1`
+- `DB_SERVICE_NAME=FREEPDB1`
 - `DB_USERNAME=laravel`
-- `DB_PASSWORD=laravel`
+- `DB_PASSWORD=laravel123`
 
 Lalu restart service:
 
