@@ -1,5 +1,6 @@
-import { useState, useRef, KeyboardEvent } from "react";
-import "./CreateRoom.css";
+import { useState, useRef, type KeyboardEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/CreateRoom.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface RoomData {
@@ -307,6 +308,7 @@ function generateRoomCode(): string {
 }
 
 export default function CreateRoom() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [screen, setScreen] = useState<Screen>("form");
   const [roomCode] = useState(generateRoomCode);
@@ -338,6 +340,7 @@ export default function CreateRoom() {
   };
 
   const handleOk = () => setScreen("info");
+  const handleClose = () => navigate("/dashboard");
   const handleDone = () => {
     // reset or navigate
     setStep(1);
@@ -363,7 +366,7 @@ export default function CreateRoom() {
         <div className="cr-card">
           <div className="cr-header">
             <span className="cr-header-title">Info</span>
-            <button className="cr-close-btn cr-info-close-btn" onClick={handleDone} title="Close">
+            <button className="cr-close-btn cr-info-close-btn" onClick={handleClose} title="Close">
               <IconX />
             </button>
           </div>
@@ -380,7 +383,7 @@ export default function CreateRoom() {
         {/* Header */}
         <div className="cr-header">
           <span className="cr-header-title">Create Room</span>
-          <button className="cr-close-btn" onClick={handleDone} title="Close">
+          <button className="cr-close-btn" onClick={handleClose} title="Close">
             <IconX />
           </button>
         </div>
