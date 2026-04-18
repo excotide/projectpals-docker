@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProjectPals - Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0D1117;
+  --navy2: #161B22;
+  --navy3: #21262D;
+  --navy4: #2D333B;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.12);
+  --blue: #2F80ED;
+  --blue-light: rgba(47,128,237,0.15);
+  --mint: #34D399;
+  --mint-light: rgba(52,211,153,0.15);
+  --red: #F85149;
+  --red-light: rgba(248,81,73,0.15);
+  --amber: #E3B341;
+  --amber-light: rgba(227,179,65,0.15);
+  --purple: #A371F7;
+  --purple-light: rgba(163,113,247,0.15);
+  --text: #E6EDF3;
+  --text2: #8B949E;
+  --text3: #484F58;
+  --sidebar-w: 220px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--text); min-height: 100vh; display: flex; font-size: 14px; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--navy4); border-radius: 4px; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--navy2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+}
+.brand {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.brand-logo {
+  display: flex; align-items: center; gap: 8px;
+}
+.brand-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--mint));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; color: white;
+}
+.brand-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.brand-badge {
+  display: inline-block; font-size: 9px; font-weight: 500;
+  background: var(--blue-light); color: var(--blue);
+  border: 1px solid rgba(47,128,237,0.3);
+  padding: 1px 6px; border-radius: 4px; margin-top: 2px; letter-spacing: 0.04em;
+}
+.nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+.nav-section {
+  font-size: 10px; font-weight: 600; color: var(--text3);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 12px 16px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 16px; margin: 1px 8px;
+  border-radius: 6px; cursor: pointer;
+  color: var(--text2); font-size: 13px;
+  transition: all 0.15s; user-select: none;
+}
+.nav-item:hover { background: var(--navy3); color: var(--text); }
+.nav-item.active { background: var(--blue-light); color: var(--blue); font-weight: 500; }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-icon { width: 16px; height: 16px; opacity: 0.6; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  background: var(--red); color: white;
+  padding: 0 5px; border-radius: 8px; min-width: 16px; text-align: center;
+}
+.sidebar-footer {
+  padding: 8px; border-top: 1px solid var(--border);
+}
+.admin-profile {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px; border-radius: 6px; cursor: pointer;
+}
+.admin-profile:hover { background: var(--navy3); }
+.admin-av {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #2F80ED, #A371F7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: white; flex-shrink: 0;
+}
+.admin-info .name { font-size: 12px; font-weight: 500; color: var(--text); }
+.admin-info .role { font-size: 10px; color: var(--text2); }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(13,17,23,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px; display: flex; align-items: center; justify-content: space-between;
+}
+.topbar-left { display: flex; align-items: center; gap: 8px; }
+.breadcrumb { font-size: 12px; color: var(--text2); }
+.breadcrumb span { color: var(--text); font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.sys-badge {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--mint);
+  background: var(--mint-light); border: 1px solid rgba(52,211,153,0.2);
+  padding: 4px 10px; border-radius: 20px;
+}
+.sys-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.topbar-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+
+/* CONTENT */
+.content { padding: 24px; flex: 1; }
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+/* PAGE HEADER */
+.page-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+.page-title { font-size: 22px; font-weight: 600; color: var(--text); }
+.page-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 6px; font-size: 13px;
+  font-family: 'DM Sans', sans-serif; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border2);
+  background: var(--navy3); color: var(--text);
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--navy4); border-color: var(--border2); }
+.btn-primary { background: var(--blue); color: white; border-color: var(--blue); }
+.btn-primary:hover { background: #4a90e2; }
+.btn-danger { background: var(--red-light); color: var(--red); border-color: rgba(248,81,73,0.3); }
+.btn-success { background: var(--mint-light); color: var(--mint); border-color: rgba(52,211,153,0.3); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* STATS GRID */
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--navy2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+}
+.stat-card.blue::before { background: var(--blue); }
+.stat-card.mint::before { background: var(--mint); }
+.stat-card.amber::before { background: var(--amber); }
+.stat-card.red::before { background: var(--red); }
+.stat-label { font-size: 11px; color: var(--text2); margin-bottom: 8px; font-weight: 500; letter-spacing: 0.02em; }
+.stat-val { font-size: 28px; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; line-height: 1; }
+.stat-change { font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.up { color: var(--mint); }
+.down { color: var(--red); }
+.neutral { color: var(--text2); }
+
+/* GRID LAYOUTS */
+.grid2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-bottom: 14px; }
+.full { margin-bottom: 14px; }
+
+/* CARD */
+.card {
+  background: var(--navy2); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.card-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.card-body { padding: 16px; }
+
+/* TABLE */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 11px; font-weight: 600;
+  color: var(--text2); padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; letter-spacing: 0.04em; text-transform: uppercase;
+}
+td {
+  padding: 10px 12px; font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text); vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.user-cell { display: flex; align-items: center; gap: 8px; }
+.av {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; flex-shrink: 0;
+}
+
+/* CHIPS */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+}
+.chip-green { background: var(--mint-light); color: var(--mint); }
+.chip-blue { background: var(--blue-light); color: var(--blue); }
+.chip-red { background: var(--red-light); color: var(--red); }
+.chip-amber { background: var(--amber-light); color: var(--amber); }
+.chip-purple { background: var(--purple-light); color: var(--purple); }
+.chip-gray { background: rgba(139,148,158,0.15); color: var(--text2); }
+
+/* SEARCH & FILTER */
+.filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--navy2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 12px; flex: 1; min-width: 200px;
+}
+.search-box input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; width: 100%;
+}
+.search-box input::placeholder { color: var(--text3); }
+select {
+  background: var(--navy2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 10px;
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; outline: none; cursor: pointer;
+}
+select option { background: var(--navy2); }
+
+/* LOG ITEM */
+.log-item {
+  display: flex; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: flex-start;
+}
+.log-item:last-child { border-bottom: none; }
+.log-dot-wrap { padding-top: 5px; }
+.log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.log-text { font-size: 12px; color: var(--text); line-height: 1.5; }
+.log-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* BAR CHART */
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.bar-label { font-size: 11px; color: var(--text2); width: 80px; text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; height: 8px; background: var(--navy3); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.bar-val { font-size: 11px; color: var(--text2); width: 30px; font-family: 'JetBrains Mono', monospace; }
+
+/* DONUT */
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* PROGRESS */
+.progress-bar { height: 6px; background: var(--navy3); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.progress-fill { height: 100%; border-radius: 3px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center; z-index: 200;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--navy2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 24px; width: 440px; max-width: 90vw;
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from{transform:translateY(8px);opacity:0} to{transform:translateY(0);opacity:1} }
+.modal-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--text2); margin-bottom: 5px; display: block; font-weight: 500; }
+.form-input {
+  width: 100%; background: var(--navy3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 12px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+  transition: border 0.15s;
+}
+.form-input:focus { border-color: var(--blue); }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 300;
+  background: var(--navy3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text);
+  transform: translateY(60px); opacity: 0;
+  transition: all 0.3s ease; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* CHART CANVAS */
+canvas { width: 100% !important; }
+
+/* TABS */
+.tabs { display: flex; gap: 2px; background: var(--navy3); border-radius: 8px; padding: 3px; margin-bottom: 16px; }
+.tab {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  cursor: pointer; color: var(--text2); transition: all 0.15s; user-select: none;
+}
+.tab.active { background: var(--navy2); color: var(--text); }
+
+/* PAGINATION */
+.pagination { display: flex; align-items: center; gap: 4px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); }
+.page-btn {
+  width: 28px; height: 28px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; cursor: pointer; background: var(--navy3); color: var(--text2);
+  border: 1px solid var(--border); transition: all 0.15s;
+}
+.page-btn:hover, .page-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+/* METRIC INLINE */
+.inline-metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.inline-metric:last-child { border-bottom: none; }
+.im-label { font-size: 12px; color: var(--text2); }
+.im-val { font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+/* EMPTY */
+.empty { padding: 40px; text-align: center; color: var(--text2); font-size: 13px; }
+
+/* SWITCH */
+.switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0; border-radius: 20px;
+  background: var(--navy3); cursor: pointer; transition: 0.2s;
+  border: 1px solid var(--border);
+}
+.slider:before {
+  content:''; position: absolute; width: 14px; height: 14px;
+  left: 2px; bottom: 2px; border-radius: 50%; background: var(--text2);
+  transition: 0.2s;
+}
+.switch input:checked + .slider { background: var(--blue); border-color: var(--blue); }
+.switch input:checked + .slider:before { transform: translateX(16px); background: white; }
+
+/* RATING */
+.stars { color: var(--amber); font-size: 12px; letter-spacing: 1px; }
+
+/* ALERT */
+.alert {
+  display: flex; gap: 10px; padding: 12px 14px;
+  border-radius: 8px; margin-bottom: 12px; align-items: flex-start;
+}
+.alert-red { background: var(--red-light); border: 1px solid rgba(248,81,73,0.2); color: var(--red); }
+.alert-amber { background: var(--amber-light); border: 1px solid rgba(227,179,65,0.2); color: var(--amber); }
+.alert-text { font-size: 12px; line-height: 1.5; }
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 72px; }
+  .brand-name,
+  .brand-badge,
+  .nav-section,
+  .nav-item span,
+  .admin-info { display: none; }
+  .nav-item { justify-content: center; padding: 10px; margin: 2px 8px; }
+  .main { margin-left: var(--sidebar-w); }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .grid2,
+  .grid3 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .sidebar { position: static; width: 100%; min-width: 100%; height: auto; }
+  body { display: block; }
+  .main { margin-left: 0; }
+  .topbar { padding: 0 12px; }
+  .content { padding: 12px; }
+  .page-header { flex-direction: column; gap: 10px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .topbar-right { gap: 8px; }
+  .sys-badge { font-size: 10px; padding: 3px 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="brand-icon">PP</div>
+      <div>
+        <div class="brand-name">ProjectPals</div>
+        <div class="brand-badge">ADMIN</div>
+      </div>
+    </div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="goPage('dashboard',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".6"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".6"/></svg>
+      Dashboard
+    </div>
+
+    <div class="nav-section">Management</div>
+    <div class="nav-item" onclick="goPage('users',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Users
+      <span class="nav-badge" id="nb-users">3</span>
+    </div>
+    <div class="nav-item" onclick="goPage('rooms',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.5"/></svg>
+      Rooms
+    </div>
+    <div class="nav-item" onclick="goPage('matching',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Matching
+    </div>
+
+    <div class="nav-section">Reports</div>
+    <div class="nav-item" onclick="goPage('analytics',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Analytics
+    </div>
+    <div class="nav-item" onclick="goPage('logs',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Activity logs
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" onclick="goPage('feedback',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      Feedback
+    </div>
+
+    <div class="nav-section">System</div>
+    <div class="nav-item" onclick="goPage('settings',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Settings
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-profile">
+      <div class="admin-av">AD</div>
+      <div class="admin-info">
+        <div class="name">Super Admin</div>
+        <div class="role">admin@projectpals.id</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="breadcrumb">ProjectPals / <span id="bread-title">Dashboard</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="sys-badge"><div class="sys-dot"></div>All systems normal</div>
+      <div class="topbar-time" id="clock"></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div><div class="page-title">Dashboard</div><div class="page-sub">Welcome back. Here's what's happening today.</div></div>
+        <button class="btn btn-primary" onclick="toast('Data refreshed')">Refresh</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">TOTAL USERS</div>
+          <div class="stat-val">1,284</div>
+          <div class="stat-change up">+12 this week</div>
+        </div>
+        <div class="stat-card mint">
+          <div class="stat-label">ACTIVE ROOMS</div>
+          <div class="stat-val">47</div>
+          <div class="stat-change up">+3 today</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">MATCHES MADE</div>
+          <div class="stat-val">318</div>
+          <div class="stat-change up">+28 this month</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">FLAGGED REPORTS</div>
+          <div class="stat-val">5</div>
+          <div class="stat-change down">needs review</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title">User growth</div><div class="card-sub">Last 7 days</div></div>
+          </div>
+          <div class="card-body">
+            <canvas id="growthChart" height="180"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Room status breakdown</div></div>
+          <div class="card-body">
+            <div class="bar-row"><div class="bar-label">Open</div><div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--blue)"></div></div><div class="bar-val">28</div></div>
+            <div class="bar-row"><div class="bar-label">In progress</div><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--mint)"></div></div><div class="bar-val">19</div></div>
+            <div class="bar-row"><div class="bar-label">Completed</div><div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--text3)"></div></div><div class="bar-val">84</div></div>
+            <div class="bar-row"><div class="bar-label">Flagged</div><div class="bar-track"><div class="bar-fill" style="width:6%;background:var(--red)"></div></div><div class="bar-val">3</div></div>
+            <div style="margin-top:16px">
+              <div class="inline-metric"><span class="im-label">Avg members/room</span><span class="im-val">3.8</span></div>
+              <div class="inline-metric"><span class="im-label">Match success rate</span><span class="im-val" style="color:var(--mint)">87%</span></div>
+              <div class="inline-metric"><span class="im-label">Avg room duration</span><span class="im-val">14 days</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Recent users</div>
+            <button class="btn btn-sm" onclick="goPage('users',document.querySelector('[onclick*=users]'))">View all</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>User</th><th>Joined</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td><div class="user-cell"><div class="av" style="background:#1a3a5c;color:#5aacff">ZD</div>zidan.dev</div></td><td style="color:var(--text2)">Apr 15</td><td><span class="chip chip-green">Active</span></td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#2a1a5c;color:#b88aff">AR</div>aryanpm</div></td><td style="color:var(--text2)">Apr 14</td><td><span class="chip chip-green">Active</span></td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#3a2a0a;color:#e8b84f">NS</div>nadya.s</div></td><td style="color:var(--text2)">Apr 13</td><td><span class="chip chip-amber">Inactive</span></td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#3a0a0a;color:#ff7070">MR</div>mirza_r</div></td><td style="color:var(--text2)">Apr 12</td><td><span class="chip chip-red">Banned</span></td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#0a2a1a;color:#5adaa0">BW</div>bwahyudi</div></td><td style="color:var(--text2)">Apr 11</td><td><span class="chip chip-green">Active</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Live activity log</div></div>
+          <div class="card-body">
+            <div id="live-log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div><div class="page-title">User management</div><div class="page-sub">Manage all registered users</div></div>
+        <button class="btn btn-primary" onclick="openModal('modal-add-user')">+ Add user</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">TOTAL</div><div class="stat-val">1,284</div><div class="stat-change neutral">all time</div></div>
+        <div class="stat-card mint"><div class="stat-label">ACTIVE</div><div class="stat-val">1,109</div><div class="stat-change up">86%</div></div>
+        <div class="stat-card amber"><div class="stat-label">INACTIVE</div><div class="stat-val">152</div><div class="stat-change neutral">12%</div></div>
+        <div class="stat-card red"><div class="stat-label">BANNED</div><div class="stat-val">23</div><div class="stat-change down">2 this week</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">All users</div>
+          <div style="display:flex;gap:8px">
+            <select onchange="filterUsers(this.value)">
+              <option value="all">All status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Banned">Banned</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body" style="padding:12px 16px">
+          <div class="filter-bar">
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="#484F58" stroke-width="1.5"/><path d="M9.5 9.5L12 12" stroke="#484F58" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input type="text" placeholder="Search username or email..." oninput="searchUsers(this.value)" id="user-search">
+            </div>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table id="user-table">
+            <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Rooms</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="user-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <div class="page-btn active">1</div>
+          <div class="page-btn">2</div>
+          <div class="page-btn">3</div>
+          <div class="page-btn">></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOMS -->
+    <div class="page" id="page-rooms">
+      <div class="page-header">
+        <div><div class="page-title">Room management</div><div class="page-sub">Monitor all project rooms</div></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">TOTAL ROOMS</div><div class="stat-val">134</div><div class="stat-change neutral">all time</div></div>
+        <div class="stat-card mint"><div class="stat-label">OPEN</div><div class="stat-val">28</div><div class="stat-change up">+3 today</div></div>
+        <div class="stat-card amber"><div class="stat-label">IN PROGRESS</div><div class="stat-val">19</div><div class="stat-change neutral">active now</div></div>
+        <div class="stat-card red"><div class="stat-label">FLAGGED</div><div class="stat-val">3</div><div class="stat-change down">needs review</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">All rooms</div>
+          <select onchange="filterRooms(this.value)">
+            <option value="all">All status</option>
+            <option value="Open">Open</option>
+            <option value="In progress">In progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Flagged">Flagged</option>
+          </select>
+        </div>
+        <div class="card-body" style="padding:12px 16px">
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="#484F58" stroke-width="1.5"/><path d="M9.5 9.5L12 12" stroke="#484F58" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input type="text" placeholder="Search room name or creator..." oninput="searchRooms(this.value)">
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Room name</th><th>Creator</th><th>Members</th><th>Skills</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+            <tbody id="room-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATCHING -->
+    <div class="page" id="page-matching">
+      <div class="page-header">
+        <div><div class="page-title">Matching engine</div><div class="page-sub">Monitor smart matching algorithm performance</div></div>
+        <button class="btn btn-primary" onclick="toast('Matching algorithm re-run triggered')">Run matching</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card mint"><div class="stat-label">SUCCESS RATE</div><div class="stat-val">87%</div><div class="stat-change up">+2% this week</div></div>
+        <div class="stat-card blue"><div class="stat-label">TOTAL MATCHES</div><div class="stat-val">318</div><div class="stat-change neutral">all time</div></div>
+        <div class="stat-card amber"><div class="stat-label">PENDING</div><div class="stat-val">12</div><div class="stat-change neutral">awaiting run</div></div>
+        <div class="stat-card red"><div class="stat-label">FAILED</div><div class="stat-val">7</div><div class="stat-change down">skill gap</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Match history</div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Room</th><th>Groups</th><th>Result</th><th>Date</th></tr></thead>
+              <tbody>
+                <tr><td>Mobile App Sprint</td><td>2 groups</td><td><span class="chip chip-green">Success</span></td><td style="color:var(--text2)">Apr 15</td></tr>
+                <tr><td>E-Commerce MVP</td><td>1 group</td><td><span class="chip chip-green">Success</span></td><td style="color:var(--text2)">Apr 12</td></tr>
+                <tr><td>AI Research #3</td><td>3 groups</td><td><span class="chip chip-amber">Partial</span></td><td style="color:var(--text2)">Apr 10</td></tr>
+                <tr><td>Blockchain Pilot</td><td>-</td><td><span class="chip chip-red">Failed</span></td><td style="color:var(--text2)">Apr 8</td></tr>
+                <tr><td>Dashboard Redesign</td><td>2 groups</td><td><span class="chip chip-green">Success</span></td><td style="color:var(--text2)">Apr 6</td></tr>
+                <tr><td>Data Pipeline</td><td>2 groups</td><td><span class="chip chip-green">Success</span></td><td style="color:var(--text2)">Apr 4</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Algorithm config</div></div>
+          <div class="card-body">
+            <div class="form-group">
+              <div class="form-label">Priority weight - Skills</div>
+              <input type="range" min="0" max="100" value="60" style="width:100%;margin:6px 0" oninput="document.getElementById('w-skills').textContent=this.value+'%'">
+              <div style="font-size:11px;color:var(--text2)">Current: <span id="w-skills">60%</span></div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">Priority weight - Activity level</div>
+              <input type="range" min="0" max="100" value="30" style="width:100%;margin:6px 0" oninput="document.getElementById('w-activity').textContent=this.value+'%'">
+              <div style="font-size:11px;color:var(--text2)">Current: <span id="w-activity">30%</span></div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">Priority weight - Timezone</div>
+              <input type="range" min="0" max="100" value="10" style="width:100%;margin:6px 0" oninput="document.getElementById('w-tz').textContent=this.value+'%'">
+              <div style="font-size:11px;color:var(--text2)">Current: <span id="w-tz">10%</span></div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="toast('Config saved successfully')">Save config</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Pending rooms (awaiting match)</div></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Room</th><th>Members joined</th><th>Capacity</th><th>Skill gap</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>AI Chatbot Research</td><td>2/3</td><td>3 groups</td>
+                <td><span class="chip chip-amber">Python missing</span></td>
+                <td><button class="btn btn-sm btn-primary" onclick="toast('Manual match triggered')">Force match</button></td>
+              </tr>
+              <tr>
+                <td>Dashboard Redesign</td><td>5/5</td><td>2 groups</td>
+                <td><span class="chip chip-green">None</span></td>
+                <td><button class="btn btn-sm btn-primary" onclick="toast('Manual match triggered')">Force match</button></td>
+              </tr>
+              <tr>
+                <td>Mobile Game MVP</td><td>3/6</td><td>2 groups</td>
+                <td><span class="chip chip-red">Unity missing</span></td>
+                <td><button class="btn btn-sm btn-primary" onclick="toast('Manual match triggered')">Force match</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="page-header">
+        <div><div class="page-title">Analytics</div><div class="page-sub">Platform performance & growth metrics</div></div>
+        <select>
+          <option>Last 7 days</option>
+          <option>Last 30 days</option>
+          <option>Last 3 months</option>
+        </select>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">PAGE VIEWS</div><div class="stat-val">24.8k</div><div class="stat-change up">+18%</div></div>
+        <div class="stat-card mint"><div class="stat-label">NEW SIGNUPS</div><div class="stat-val">342</div><div class="stat-change up">+12%</div></div>
+        <div class="stat-card amber"><div class="stat-label">AVG SESSION</div><div class="stat-val">8.4m</div><div class="stat-change up">+1.2m</div></div>
+        <div class="stat-card red"><div class="stat-label">CHURN RATE</div><div class="stat-val">3.2%</div><div class="stat-change down">+0.4%</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Monthly active users</div></div>
+          <div class="card-body">
+            <canvas id="mauChart" height="200"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Top skills in demand</div></div>
+          <div class="card-body">
+            <div class="bar-row"><div class="bar-label">React</div><div class="bar-track"><div class="bar-fill" style="width:78%;background:var(--blue)"></div></div><div class="bar-val">78%</div></div>
+            <div class="bar-row"><div class="bar-label">Laravel</div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--mint)"></div></div><div class="bar-val">65%</div></div>
+            <div class="bar-row"><div class="bar-label">Flutter</div><div class="bar-track"><div class="bar-fill" style="width:54%;background:var(--blue)"></div></div><div class="bar-val">54%</div></div>
+            <div class="bar-row"><div class="bar-label">Python</div><div class="bar-track"><div class="bar-fill" style="width:49%;background:var(--amber)"></div></div><div class="bar-val">49%</div></div>
+            <div class="bar-row"><div class="bar-label">Node.js</div><div class="bar-track"><div class="bar-fill" style="width:41%;background:var(--mint)"></div></div><div class="bar-val">41%</div></div>
+            <div class="bar-row"><div class="bar-label">Vue.js</div><div class="bar-track"><div class="bar-fill" style="width:32%;background:var(--purple)"></div></div><div class="bar-val">32%</div></div>
+            <div class="bar-row"><div class="bar-label">Unity</div><div class="bar-track"><div class="bar-fill" style="width:20%;background:var(--text3)"></div></div><div class="bar-val">20%</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div class="card">
+          <div class="card-head"><div class="card-title">User retention</div></div>
+          <div class="card-body">
+            <div class="inline-metric"><span class="im-label">Day 1</span><span class="im-val" style="color:var(--mint)">71%</span></div>
+            <div class="inline-metric"><span class="im-label">Day 7</span><span class="im-val" style="color:var(--mint)">52%</span></div>
+            <div class="inline-metric"><span class="im-label">Day 14</span><span class="im-val" style="color:var(--amber)">38%</span></div>
+            <div class="inline-metric"><span class="im-label">Day 30</span><span class="im-val" style="color:var(--amber)">29%</span></div>
+            <div class="inline-metric"><span class="im-label">Day 60</span><span class="im-val" style="color:var(--red)">18%</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Room completion rate</div></div>
+          <div class="card-body">
+            <div style="text-align:center;padding:8px 0">
+              <div style="font-size:42px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--mint)">73%</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px">of rooms reach completion</div>
+            </div>
+            <div class="inline-metric" style="margin-top:12px"><span class="im-label">Abandoned</span><span class="im-val" style="color:var(--red)">27%</span></div>
+            <div class="inline-metric"><span class="im-label">Avg completion time</span><span class="im-val">14 days</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Platform source</div></div>
+          <div class="card-body">
+            <div class="bar-row"><div class="bar-label">Web</div><div class="bar-track"><div class="bar-fill" style="width:62%;background:var(--blue)"></div></div><div class="bar-val">62%</div></div>
+            <div class="bar-row"><div class="bar-label">Mobile</div><div class="bar-track"><div class="bar-fill" style="width:31%;background:var(--mint)"></div></div><div class="bar-val">31%</div></div>
+            <div class="bar-row"><div class="bar-label">API</div><div class="bar-track"><div class="bar-fill" style="width:7%;background:var(--text3)"></div></div><div class="bar-val">7%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="page" id="page-logs">
+      <div class="page-header">
+        <div><div class="page-title">Activity logs</div><div class="page-sub">Full audit trail of platform events</div></div>
+        <button class="btn" onclick="toast('Logs exported as CSV')">Export CSV</button>
+      </div>
+
+      <div class="alert alert-red">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <div class="alert-text"><strong>5 events</strong> require admin attention - user reports and suspicious login attempts detected.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">All events</div>
+          <div style="display:flex;gap:8px">
+            <select id="log-filter" onchange="filterLogs()">
+              <option value="all">All types</option>
+              <option value="user">User</option>
+              <option value="room">Room</option>
+              <option value="system">System</option>
+              <option value="security">Security</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0 16px">
+          <div id="log-list"></div>
+        </div>
+        <div class="pagination">
+          <div class="page-btn active">1</div>
+          <div class="page-btn">2</div>
+          <div class="page-btn">3</div>
+          <div class="page-btn">></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="page" id="page-feedback">
+      <div class="page-header">
+        <div><div class="page-title">Feedback & reports</div><div class="page-sub">User-submitted feedback and flagged reports</div></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card mint"><div class="stat-label">AVG RATING</div><div class="stat-val">4.3</div><div class="stat-change up">+0.2</div></div>
+        <div class="stat-card blue"><div class="stat-label">TOTAL FEEDBACK</div><div class="stat-val">892</div><div class="stat-change neutral">all time</div></div>
+        <div class="stat-card amber"><div class="stat-label">OPEN REPORTS</div><div class="stat-val">5</div><div class="stat-change down">pending review</div></div>
+        <div class="stat-card red"><div class="stat-label">RESOLVED</div><div class="stat-val">47</div><div class="stat-change up">this month</div></div>
+      </div>
+
+      <div class="tabs" id="feedback-tabs">
+        <div class="tab active" onclick="switchTab('reviews')">User reviews</div>
+        <div class="tab" onclick="switchTab('reports')">Flagged reports</div>
+      </div>
+
+      <div id="tab-reviews">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recent reviews</div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>User</th><th>Rating</th><th>Comment</th><th>Room</th><th>Date</th></tr></thead>
+              <tbody>
+                <tr><td><div class="user-cell"><div class="av" style="background:#1a3a5c;color:#5aacff">ZD</div>zidan.dev</div></td><td><span class="stars">★★★★★</span></td><td style="color:var(--text2);max-width:200px">Great matching, found a solid team fast!</td><td>Mobile App Sprint</td><td style="color:var(--text2)">Apr 15</td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#2a1a5c;color:#b88aff">AR</div>aryanpm</div></td><td><span class="stars">★★★★</span><span style="color:var(--text3)">★</span></td><td style="color:var(--text2);max-width:200px">Algorithm worked well but UX needs work</td><td>E-Commerce MVP</td><td style="color:var(--text2)">Apr 13</td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#0a2a1a;color:#5adaa0">BW</div>bwahyudi</div></td><td><span class="stars">★★★★★</span></td><td style="color:var(--text2);max-width:200px">Really useful platform for finding teammates</td><td>Dashboard Redesign</td><td style="color:var(--text2)">Apr 11</td></tr>
+                <tr><td><div class="user-cell"><div class="av" style="background:#3a2a0a;color:#e8b84f">NS</div>nadya.s</div></td><td><span class="stars">★★★</span><span style="color:var(--text3)">★★</span></td><td style="color:var(--text2);max-width:200px">Matching was okay but skill detection was off</td><td>AI Chatbot</td><td style="color:var(--text2)">Apr 10</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-reports" style="display:none">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Flagged reports</div><div class="card-sub">5 open - requires action</div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Reporter</th><th>Target</th><th>Reason</th><th>Severity</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody>
+                <tr><td>zidan.dev</td><td>mirza_r</td><td>Spam in room chat</td><td><span class="chip chip-red">High</span></td><td><span class="chip chip-amber">Open</span></td><td><button class="btn btn-sm btn-danger" onclick="toast('User banned')">Ban user</button></td></tr>
+                <tr><td>aryanpm</td><td>ghost_user</td><td>Inactive & blocking spot</td><td><span class="chip chip-amber">Medium</span></td><td><span class="chip chip-amber">Open</span></td><td><button class="btn btn-sm" onclick="toast('User removed from room')">Remove</button></td></tr>
+                <tr><td>nadya.s</td><td>anon_99</td><td>Inappropriate username</td><td><span class="chip chip-amber">Medium</span></td><td><span class="chip chip-amber">Open</span></td><td><button class="btn btn-sm btn-danger" onclick="toast('Username reset')">Reset name</button></td></tr>
+                <tr><td>bwahyudi</td><td>test_account</td><td>Bot-like behavior</td><td><span class="chip chip-red">High</span></td><td><span class="chip chip-amber">Open</span></td><td><button class="btn btn-sm btn-danger" onclick="toast('Account suspended')">Suspend</button></td></tr>
+                <tr><td>system</td><td>spam_001</td><td>Multiple failed logins</td><td><span class="chip chip-red">High</span></td><td><span class="chip chip-green">Resolved</span></td><td><button class="btn btn-sm" onclick="toast('Dismissed')">Dismiss</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div><div class="page-title">Settings</div><div class="page-sub">Platform configuration and admin preferences</div></div>
+        <button class="btn btn-primary" onclick="toast('Settings saved')">Save changes</button>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div class="card-title">General settings</div></div>
+          <div class="card-body">
+            <div class="form-group"><div class="form-label">Platform name</div><input class="form-input" value="ProjectPals"></div>
+            <div class="form-group"><div class="form-label">Support email</div><input class="form-input" value="support@projectpals.id"></div>
+            <div class="form-group"><div class="form-label">Max users per room</div><input class="form-input" type="number" value="6"></div>
+            <div class="form-group"><div class="form-label">Max groups per room</div><input class="form-input" type="number" value="4"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Feature toggles</div></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:13px">Smart matching</div><div style="font-size:11px;color:var(--text2)">Enable AI-powered team matching</div></div>
+                <label class="switch"><input type="checkbox" checked onchange="toast('Setting updated')"><span class="slider"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:13px">Public rooms</div><div style="font-size:11px;color:var(--text2)">Allow discoverable public rooms</div></div>
+                <label class="switch"><input type="checkbox" checked onchange="toast('Setting updated')"><span class="slider"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:13px">User registration</div><div style="font-size:11px;color:var(--text2)">Allow new user sign-ups</div></div>
+                <label class="switch"><input type="checkbox" checked onchange="toast('Setting updated')"><span class="slider"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:13px">Email notifications</div><div style="font-size:11px;color:var(--text2)">Send automated email reminders</div></div>
+                <label class="switch"><input type="checkbox" onchange="toast('Setting updated')"><span class="slider"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:13px">Maintenance mode</div><div style="font-size:11px;color:var(--text2)">Show maintenance page to users</div></div>
+                <label class="switch"><input type="checkbox" onchange="toast('Maintenance mode toggled')"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Admin accounts</div><button class="btn btn-sm btn-primary" onclick="toast('Invite sent')">+ Invite admin</button></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last active</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><div class="user-cell"><div class="av" style="background:linear-gradient(135deg,#2F80ED,#A371F7);color:white;font-size:10px">AD</div>Super Admin</div></td><td style="color:var(--text2)">admin@projectpals.id</td><td><span class="chip chip-purple">Super admin</span></td><td style="color:var(--text2)">Now</td><td><span style="color:var(--text3);font-size:12px">-</span></td></tr>
+              <tr><td><div class="user-cell"><div class="av" style="background:#1a3a5c;color:#5aacff">RZ</div>Rizky M.</div></td><td style="color:var(--text2)">rizky@projectpals.id</td><td><span class="chip chip-blue">Moderator</span></td><td style="color:var(--text2)">Apr 15</td><td><button class="btn btn-sm btn-danger" onclick="toast('Admin access revoked')">Revoke</button></td></tr>
+              <tr><td><div class="user-cell"><div class="av" style="background:#2a1a5c;color:#b88aff">DA</div>Dina A.</div></td><td style="color:var(--text2)">dina@projectpals.id</td><td><span class="chip chip-blue">Moderator</span></td><td style="color:var(--text2)">Apr 14</td><td><button class="btn btn-sm btn-danger" onclick="toast('Admin access revoked')">Revoke</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: Add User -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-title">Add new user</div>
+    <div class="modal-sub">Manually create a user account</div>
+    <div class="form-group"><div class="form-label">Full name</div><input class="form-input" placeholder="e.g. Zidan Prakoso"></div>
+    <div class="form-group"><div class="form-label">Username</div><input class="form-input" placeholder="e.g. zidan.dev"></div>
+    <div class="form-group"><div class="form-label">Email</div><input class="form-input" type="email" placeholder="e.g. zidan@email.com"></div>
+    <div class="form-group"><div class="form-label">Role</div><select class="form-input"><option>Member</option><option>Moderator</option></select></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-add-user')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-add-user');toast('User added successfully')">Create user</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// DATA
+const USERS = [
+  {av:'ZD',avBg:'#1a3a5c',avC:'#5aacff',name:'zidan.dev',email:'zidan@email.com',joined:'Apr 15, 2024',rooms:3,status:'Active'},
+  {av:'AR',avBg:'#2a1a5c',avC:'#b88aff',name:'aryanpm',email:'aryan@email.com',joined:'Apr 14, 2024',rooms:2,status:'Active'},
+  {av:'NS',avBg:'#3a2a0a',avC:'#e8b84f',name:'nadya.s',email:'nadya@email.com',joined:'Apr 13, 2024',rooms:1,status:'Inactive'},
+  {av:'MR',avBg:'#3a0a0a',avC:'#ff7070',name:'mirza_r',email:'mirza@email.com',joined:'Apr 12, 2024',rooms:4,status:'Banned'},
+  {av:'BW',avBg:'#0a2a1a',avC:'#5adaa0',name:'bwahyudi',email:'budi@email.com',joined:'Apr 11, 2024',rooms:2,status:'Active'},
+  {av:'KL',avBg:'#1a2a3a',avC:'#7ac0ff',name:'khalid_lm',email:'khalid@email.com',joined:'Apr 10, 2024',rooms:1,status:'Active'},
+  {av:'FS',avBg:'#2a0a2a',avC:'#e07af5',name:'fika.sari',email:'fika@email.com',joined:'Apr 9, 2024',rooms:2,status:'Inactive'},
+  {av:'RP',avBg:'#0a1a2a',avC:'#4ab3e8',name:'rizky_p',email:'rizky@email.com',joined:'Apr 8, 2024',rooms:3,status:'Active'},
+];
+
+const ROOMS = [
+  {name:'Mobile App Sprint',creator:'zidan.dev',members:'3/5',skills:'Flutter, Laravel',status:'Open',date:'Apr 15'},
+  {name:'E-Commerce MVP',creator:'aryanpm',members:'4/4',skills:'React, Node.js',status:'In progress',date:'Apr 12'},
+  {name:'AI Chatbot Research',creator:'nadya.s',members:'2/3',skills:'Python, ML',status:'Open',date:'Apr 10'},
+  {name:'Dashboard Redesign',creator:'bwahyudi',members:'5/5',skills:'Figma, Vue.js',status:'In progress',date:'Apr 9'},
+  {name:'Blockchain Pilot',creator:'khalid_lm',members:'1/4',skills:'Solidity, Web3',status:'Flagged',date:'Apr 8'},
+  {name:'Data Pipeline',creator:'fika.sari',members:'3/3',skills:'Python, Spark',status:'Completed',date:'Apr 4'},
+  {name:'Mobile Game MVP',creator:'rizky_p',members:'3/6',skills:'Unity, C#',status:'Open',date:'Apr 3'},
+  {name:'Social Platform v2',creator:'zidan.dev',members:'4/5',skills:'React, Laravel',status:'Completed',date:'Mar 28'},
+];
+
+const LOGS = [
+  {type:'security',dot:'#F85149',text:'Multiple failed login attempts from IP 103.x.x.x',meta:'Security - 2 min ago'},
+  {type:'room',dot:'#2F80ED',text:'New room created: "Mobile App Sprint" by zidan.dev',meta:'Room - 5 min ago'},
+  {type:'user',dot:'#34D399',text:'User bwahyudi completed onboarding and joined room #47',meta:'User - 12 min ago'},
+  {type:'security',dot:'#F85149',text:'User mirza_r reported for spam - report #1048',meta:'Security - 18 min ago'},
+  {type:'room',dot:'#E3B341',text:'Room "Blockchain Pilot" flagged for review by moderator',meta:'Room - 31 min ago'},
+  {type:'system',dot:'#A371F7',text:'Matching algorithm run completed: 3 rooms processed',meta:'System - 45 min ago'},
+  {type:'user',dot:'#34D399',text:'New user registered: khalid_lm (khalid@email.com)',meta:'User - 1 hr ago'},
+  {type:'room',dot:'#2F80ED',text:'Room "Data Pipeline" marked as Completed by fika.sari',meta:'Room - 2 hr ago'},
+  {type:'system',dot:'#A371F7',text:'Daily backup completed - 1,284 user records secured',meta:'System - 6 hr ago'},
+  {type:'security',dot:'#F85149',text:'Admin login: admin@projectpals.id from 202.x.x.x',meta:'Security - 8 hr ago'},
+  {type:'user',dot:'#E3B341',text:'User test_account suspended for bot-like behavior',meta:'User - 10 hr ago'},
+  {type:'room',dot:'#2F80ED',text:'Room "Social Platform v2" archived after 21 days',meta:'Room - 12 hr ago'},
+];
+
+// NAVIGATION
+function goPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if(el) el.classList.add('active');
+  const titles = {dashboard:'Dashboard',users:'Users',rooms:'Rooms',matching:'Matching',analytics:'Analytics',logs:'Activity logs',feedback:'Feedback',settings:'Settings'};
+  document.getElementById('bread-title').textContent = titles[id] || id;
+  if(id==='analytics') setTimeout(initCharts,100);
+}
+
+// CLOCK
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// TOAST
+function toast(msg, duration=2500){
+  const t = document.getElementById('toast');
+  t.textContent = 'OK ' + msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), duration);
+}
+
+// MODAL
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// USERS TABLE
+let allUsers = [...USERS];
+function renderUsers(data){
+  const statusChip = {Active:'chip-green',Inactive:'chip-amber',Banned:'chip-red'};
+  document.getElementById('user-tbody').innerHTML = data.map(u=>`
+    <tr>
+      <td><div class="user-cell"><div class="av" style="background:${u.avBg};color:${u.avC}">${u.av}</div>${u.name}</div></td>
+      <td style="color:var(--text2)">${u.email}</td>
+      <td style="color:var(--text2)">${u.joined}</td>
+      <td>${u.rooms}</td>
+      <td><span class="chip ${statusChip[u.status]}">${u.status}</span></td>
+      <td>
+        ${u.status==='Banned'
+          ? `<button class="btn btn-sm btn-success" onclick="toast('User unbanned')">Unban</button>`
+          : `<button class="btn btn-sm btn-danger" onclick="toast('User banned')">Ban</button>`}
+        <button class="btn btn-sm" style="margin-left:4px" onclick="toast('User removed')">Remove</button>
+      </td>
+    </tr>`).join('');
+}
+function searchUsers(q){
+  const f = q.toLowerCase();
+  renderUsers(allUsers.filter(u=>u.name.toLowerCase().includes(f)||u.email.toLowerCase().includes(f)));
+}
+function filterUsers(status){
+  renderUsers(status==='all'?allUsers:allUsers.filter(u=>u.status===status));
+}
+renderUsers(allUsers);
+
+// ROOMS TABLE
+let allRooms = [...ROOMS];
+function renderRooms(data){
+  const sc = {Open:'chip-blue','In progress':'chip-green',Completed:'chip-gray',Flagged:'chip-red'};
+  document.getElementById('room-tbody').innerHTML = data.map(r=>`
+    <tr>
+      <td>${r.name}</td>
+      <td style="color:var(--text2)">${r.creator}</td>
+      <td>${r.members}</td>
+      <td style="color:var(--text2);font-size:12px">${r.skills}</td>
+      <td><span class="chip ${sc[r.status]||'chip-gray'}">${r.status}</span></td>
+      <td style="color:var(--text2)">${r.date}</td>
+      <td>
+        <button class="btn btn-sm" onclick="toast('Room details opened')">View</button>
+        ${r.status==='Flagged'?`<button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="toast('Room removed')">Remove</button>`:''}
+      </td>
+    </tr>`).join('');
+}
+function filterRooms(status){
+  renderRooms(status==='all'?allRooms:allRooms.filter(r=>r.status===status));
+}
+function searchRooms(q){
+  const f=q.toLowerCase();
+  renderRooms(allRooms.filter(r=>r.name.toLowerCase().includes(f)||r.creator.toLowerCase().includes(f)));
+}
+renderRooms(allRooms);
+
+// LOGS
+function renderLogs(data){
+  document.getElementById('log-list').innerHTML = data.map(l=>`
+    <div class="log-item">
+      <div class="log-dot-wrap"><div class="log-dot" style="background:${l.dot}"></div></div>
+      <div><div class="log-text">${l.text}</div><div class="log-meta">${l.meta}</div></div>
+    </div>`).join('');
+}
+function filterLogs(){
+  const val = document.getElementById('log-filter').value;
+  renderLogs(val==='all'?LOGS:LOGS.filter(l=>l.type===val));
+}
+renderLogs(LOGS);
+
+// LIVE LOG
+const liveLogs = [
+  {dot:'#2F80ED',text:'Room "Mobile App Sprint" created',time:'Just now'},
+  {dot:'#34D399',text:'User bwahyudi joined room #47',time:'12 min ago'},
+  {dot:'#F85149',text:'mirza_r reported for spam',time:'18 min ago'},
+  {dot:'#A371F7',text:'Matching run: 3 rooms processed',time:'45 min ago'},
+  {dot:'#E3B341',text:'Room "Blockchain Pilot" flagged',time:'1 hr ago'},
+];
+document.getElementById('live-log').innerHTML = liveLogs.map(l=>`
+  <div class="log-item">
+    <div class="log-dot-wrap"><div class="log-dot" style="background:${l.dot}"></div></div>
+    <div><div class="log-text">${l.text}</div><div class="log-meta">${l.time}</div></div>
+  </div>`).join('');
+
+// FEEDBACK TABS
+function switchTab(tab){
+  document.getElementById('tab-reviews').style.display = tab==='reviews'?'block':'none';
+  document.getElementById('tab-reports').style.display = tab==='reports'?'block':'none';
+  document.querySelectorAll('#feedback-tabs .tab').forEach((t,i)=>{
+    t.classList.toggle('active',(tab==='reviews'&&i===0)||(tab==='reports'&&i===1));
+  });
+}
+
+// CHARTS
+let chartsInited = false;
+function initCharts(){
+  if(chartsInited) return;
+  chartsInited = true;
+  const cfg = (labels, data, color) => ({
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        data,
+        borderColor: color,
+        backgroundColor: color.replace(')',',0.1)').replace('rgb','rgba'),
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: color,
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B949E',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B949E',font:{size:11}}}
+      }
+    }
+  });
+
+  const gc = document.getElementById('growthChart');
+  if(gc) new Chart(gc, cfg(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],[142,156,139,168,174,161,183],'rgb(47,128,237)'));
+
+  const mc = document.getElementById('mauChart');
+  if(mc) new Chart(mc, cfg(['Oct','Nov','Dec','Jan','Feb','Mar','Apr'],[620,710,680,820,890,950,1040],'rgb(52,211,153)'));
+}
+
+setTimeout(()=>{
+  const gc = document.getElementById('growthChart');
+  if(gc) new Chart(gc,{
+    type:'line',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[{data:[142,156,139,168,174,161,183],borderColor:'rgb(47,128,237)',backgroundColor:'rgba(47,128,237,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'rgb(47,128,237)',tension:0.4,fill:true}]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B949E',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B949E',font:{size:11}}}}}
+  });
+}, 200);
+</script>
+</body>
+</html>
