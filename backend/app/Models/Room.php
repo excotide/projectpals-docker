@@ -5,8 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $created_by
+ * @property string $project_theme
+ * @property string $room_code
+ * @property array $roles
+ * @property array $productivity_windows
+ * @property array $environments
+ * @property int $max_per_group
+ * @property int $number_of_groups
+ * @property string $status
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class Room extends Model
 {
     protected $fillable = [

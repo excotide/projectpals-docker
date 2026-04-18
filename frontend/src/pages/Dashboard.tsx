@@ -153,6 +153,7 @@ export default function Dashboard() {
             <p className="active">Home</p>
             <p>Join</p>
             <p>Rooms</p>
+            <p>Teams</p>
             <p>Profile</p>
           </nav>
         </div>

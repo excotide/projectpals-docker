@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('api', \App\Http\Middleware\ForceJsonResponse::class);
+        $middleware->alias([
+            'admin.session' => \App\Http\Middleware\AdminSessionAuth::class,
+        ]);
 
         $middleware->redirectGuestsTo(function ($request): ?string {
             if ($request->expectsJson() || $request->is('api/*')) {

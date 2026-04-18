@@ -6,7 +6,11 @@ import JoinRoom from "./pages/JoinRoom"
 import LandingPage from "./pages/LandingPage"
 import Dashboard from "./pages/Dashboard"
 import RoomDetail from "./pages/RoomDetail"
-import AdminPage from "./pages/AdminPage"
+import AdminLogin from "./pages/admin/AdminLogin"
+import AdminPanel from "./pages/admin/AdminPanel"
+import AdminRoute from "./components/admin/AdminRoute"
+import { AdminAuthProvider } from "./hooks/useAdminAuth"
+import { ADMIN_PREFIX } from "./lib/adminApi"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem("auth_token")
@@ -19,6 +23,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  const adminBasePath = `/${ADMIN_PREFIX}`
+
   return (
     <BrowserRouter>
       <Routes>
@@ -58,11 +64,21 @@ export default function App() {
           )}
         />
         <Route
-          path="/admin"
+          path={`${adminBasePath}/login`}
           element={(
-            <RequireAuth>
-              <AdminPage />
-            </RequireAuth>
+            <AdminAuthProvider>
+              <AdminLogin />
+            </AdminAuthProvider>
+          )}
+        />
+        <Route
+          path={`${adminBasePath}/*`}
+          element={(
+            <AdminAuthProvider>
+              <AdminRoute>
+                <AdminPanel />
+              </AdminRoute>
+            </AdminAuthProvider>
           )}
         />
       </Routes>

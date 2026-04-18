@@ -24,3 +24,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/rooms/join', [RoomController::class, 'join']);
     Route::post('/rooms', [RoomController::class, 'store']);
 });
+
+require __DIR__.'/admin_api.php';
