@@ -13,7 +13,7 @@ import { AdminAuthProvider } from "./hooks/useAdminAuth"
 import { ADMIN_PREFIX } from "./lib/adminApi"
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const token = localStorage.getItem("auth_token")
+  const token = localStorage.getItem("token")
 
   if (!token) {
     return <Navigate to="/login" replace />

@@ -1,6 +1,7 @@
 import { useState, useRef, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/CreateRoom.css";
+import { useCreateRoom } from "../hooks/useRooms";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface RoomData {
@@ -305,12 +306,12 @@ const TOTAL = STEPS.length;
 
 export default function CreateRoom() {
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [step, setStep] = useState(1);
   const [screen, setScreen] = useState<Screen>("form");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const createRoomMutation = useCreateRoom();
   const [data, setData] = useState<RoomData>({
     name: "",
     roles: [],
@@ -333,7 +334,7 @@ export default function CreateRoom() {
 
     if (step < TOTAL) { setStep(step + 1); return; }
 
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login", { replace: true });
       return;
@@ -341,37 +342,14 @@ export default function CreateRoom() {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: data.name.trim(),
-          roles: data.roles,
-          maxPerGroup: data.maxPerGroup,
-          numGroups: data.numGroups,
-        }),
+      const created = await createRoomMutation.mutateAsync({
+        name: data.name.trim(),
+        roles: data.roles,
+        maxPerGroup: data.maxPerGroup,
+        numGroups: data.numGroups,
       });
 
-      const payload = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (!response.ok) {
-        const firstValidation = payload?.errors ? Object.values(payload.errors)[0] : null;
-        const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
-        throw new Error(firstValidationMessage || payload?.message || "Gagal membuat room.");
-      }
-
-      setRoomCode(payload?.data?.room_code ?? "");
+      setRoomCode(typeof created?.room_code === "string" ? created.room_code : "");
       setScreen("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan.");

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/CreateRoom.css";
+import { useFinalizeJoinRoom, useJoinRoomPreview } from "../hooks/useRooms";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
 type RoleType = "primary" | "backup";
@@ -73,7 +74,6 @@ const IconChevronRight = () => (
 
 export default function JoinRoom() {
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [step, setStep] = useState<Step>("landing");
   const [code, setCode] = useState("");
   const [roleType, setRoleType] = useState<Record<string, RoleType>>({});
@@ -81,6 +81,8 @@ export default function JoinRoom() {
   const [roomRoles, setRoomRoles] = useState<Role[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const joinPreviewQuery = useJoinRoomPreview(code.trim().toUpperCase());
+  const finalizeJoinMutation = useFinalizeJoinRoom();
 
   const stepNum = STEP_MAP[step] ?? 1;
   const pct = Math.round(((stepNum - 1) / TOTAL_STEPS) * 100);
@@ -91,29 +93,13 @@ export default function JoinRoom() {
     setErrorMessage("");
     if (code.trim().length !== 6) { go("invalid"); return; }
 
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (!token) { navigate("/login", { replace: true }); return; }
 
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${code.trim().toUpperCase()}/join-preview`, {
-        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        navigate("/login", { replace: true });
-        return;
-      }
-      if (!response.ok) {
-        setErrorMessage(payload?.message || "Room tidak ditemukan.");
-        go("invalid");
-        return;
-      }
-
-      const fetchedRoles = Array.isArray(payload?.data?.roles) ? payload.data.roles : [];
+      const previewResult = await joinPreviewQuery.refetch();
+      const fetchedRoles = Array.isArray(previewResult.data?.roles) ? previewResult.data.roles : [];
       if (fetchedRoles.length < 2) {
         setErrorMessage("Room belum memiliki minimal 2 role untuk proses matching.");
         go("invalid");
@@ -131,8 +117,8 @@ export default function JoinRoom() {
       setSelectedTimes([]);
       setRoomRoles(mappedRoles);
       go("role");
-    } catch {
-      setErrorMessage("Gagal memuat data room. Coba lagi.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Gagal memuat data room. Coba lagi.");
       go("invalid");
     } finally {
       setSubmitting(false);
@@ -146,7 +132,7 @@ export default function JoinRoom() {
 
   const handleJoinRoom = async () => {
     if (submitting || selectedTimes.length === 0) return;
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (!token) { navigate("/login", { replace: true }); return; }
 
     const primaryRoleId = Object.keys(roleType).find((id) => roleType[id] === "primary");
@@ -156,34 +142,12 @@ export default function JoinRoom() {
     setSubmitting(true);
     setErrorMessage("");
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          roomCode: code.trim().toUpperCase(),
-          primaryRole: roomRoles.find((r) => r.id === primaryRoleId)?.name,
-          backupRole: roomRoles.find((r) => r.id === backupRoleId)?.name,
-          productivityWindows: windows,
-        }),
+      await finalizeJoinMutation.mutateAsync({
+        roomCode: code.trim().toUpperCase(),
+        primaryRole: roomRoles.find((r) => r.id === primaryRoleId)?.name,
+        backupRole: roomRoles.find((r) => r.id === backupRoleId)?.name,
+        productivityWindows: windows,
       });
-      const payload = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        navigate("/login", { replace: true });
-        return;
-      }
-      if (response.status === 404) {
-        setErrorMessage(payload?.message || "Room tidak ditemukan.");
-        go("invalid");
-        return;
-      }
-      if (!response.ok) {
-        const firstValidation = payload?.errors ? Object.values(payload.errors)[0] : null;
-        const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
-        throw new Error(firstValidationMessage || payload?.message || "Gagal join room.");
-      }
       go("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan.");

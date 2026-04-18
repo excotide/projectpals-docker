@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-
-type AuthUser = {
-  id: number;
-  name: string;
-  email: string;
-};
+import { useCurrentUser, useLogout } from "../hooks/useAuth";
+import { useMyRooms } from "../hooks/useRooms";
 
 type RoomItem = {
   id: number;
@@ -17,96 +13,23 @@ type RoomItem = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [roomsLoading, setRoomsLoading] = useState(true);
-  const [roomsError, setRoomsError] = useState("");
-  const [rooms, setRooms] = useState<RoomItem[]>([]);
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+  const { data: user, isLoading: loading } = useCurrentUser();
+  const {
+    data: roomsData,
+    isLoading: roomsLoading,
+    error: roomsQueryError,
+  } = useMyRooms();
+  const logoutMutation = useLogout();
+  const rooms = (roomsData ?? []) as RoomItem[];
+  const roomsError = roomsQueryError instanceof Error ? roomsQueryError.message : "";
 
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    const localUserRaw = localStorage.getItem("auth_user");
-
+    const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login", { replace: true });
-      return;
     }
-
-    if (localUserRaw) {
-      try {
-        const parsed = JSON.parse(localUserRaw) as AuthUser;
-        setUser(parsed);
-      } catch {
-        localStorage.removeItem("auth_user");
-      }
-    }
-
-    const loadMe = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.status === 401) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("auth_user");
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        if (!response.ok) {
-          return;
-        }
-
-        const me = (await response.json()) as AuthUser;
-        setUser(me);
-        localStorage.setItem("auth_user", JSON.stringify(me));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const loadMyRooms = async () => {
-      try {
-        setRoomsError("");
-
-        const response = await fetch(`${API_BASE_URL}/api/rooms/my-rooms`, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.status === 401) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("auth_user");
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        if (!response.ok) {
-          setRoomsError("Gagal memuat daftar room.");
-          return;
-        }
-
-        const payload = (await response.json()) as { data?: RoomItem[] };
-        setRooms(Array.isArray(payload.data) ? payload.data : []);
-      } catch {
-        setRoomsError("Gagal memuat daftar room.");
-      } finally {
-        setRoomsLoading(false);
-      }
-    };
-
-    loadMe();
-    loadMyRooms();
-  }, [API_BASE_URL, navigate]);
+  }, [navigate]);
 
   const initials = useMemo(() => {
     if (!user?.name) return "U";
@@ -123,21 +46,10 @@ export default function Dashboard() {
     if (loggingOut) return;
 
     setLoggingOut(true);
-    const token = localStorage.getItem("auth_token");
 
     try {
-      if (token) {
-        await fetch(`${API_BASE_URL}/api/auth/logout`, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
+      await logoutMutation.mutateAsync();
     } finally {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
       navigate("/login", { replace: true });
       setLoggingOut(false);
     }

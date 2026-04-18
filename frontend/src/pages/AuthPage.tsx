@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLogin, useRegister } from "../hooks/useAuth";
 
 // ─── Eye tracking hook ────────────────────────────────────────────────────────
 function useEyePos(covering: boolean) {
@@ -147,6 +148,8 @@ type Mode = "register" | "login";
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
   const [mode, setMode] = useState<Mode>("register");
   const [animating, setAnimating] = useState(false);
   const [formVisible, setFormVisible] = useState(true);
@@ -159,8 +162,6 @@ export default function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
   useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
 
@@ -197,53 +198,22 @@ export default function AuthPage() {
 
     try {
       if (mode === "register") {
-        const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            name: reg.nickname.trim() || reg.username.trim(),
-            email: reg.email.trim(),
-            password: reg.password,
-            password_confirmation: reg.password,
-            device_name: "web",
-          }),
+        await registerMutation.mutateAsync({
+          name: reg.nickname.trim() || reg.username.trim(),
+          email: reg.email.trim(),
+          password: reg.password,
+          password_confirmation: reg.password,
+          device_name: "web",
         });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          const firstValidation = data?.errors ? Object.values(data.errors)[0] : null;
-          const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
-          throw new Error(firstValidationMessage || data?.message || "Register gagal.");
-        }
 
         setSuccess(true);
         setTimeout(() => switchMode("login"), 1200);
       } else {
-        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            email: log.identifier.trim(),
-            password: log.password,
-            device_name: "web",
-          }),
+        await loginMutation.mutateAsync({
+          email: log.identifier.trim(),
+          password: log.password,
         });
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data?.message || "Login gagal.");
-        }
-
-        localStorage.setItem("auth_token", data.token);
-        localStorage.setItem("auth_user", JSON.stringify(data.user));
         localStorage.setItem("remember_me", remember ? "1" : "0");
 
         setSuccess(true);

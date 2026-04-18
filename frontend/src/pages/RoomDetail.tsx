@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "../styles/Dashboard.css";
+import { useDeleteOrLeaveRoom, useRoomByCode, useUpdateRoom } from "../hooks/useRooms";
 
 type RoomDetailData = {
   id: number;
@@ -31,15 +32,17 @@ type RoomFormData = {
 export default function RoomDetail() {
   const navigate = useNavigate();
   const { roomCode } = useParams<{ roomCode: string }>();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [room, setRoom] = useState<RoomDetailData | null>(null);
-  const [access, setAccess] = useState<RoomAccess>({ is_owner: false, is_member: false });
+  const roomQuery = useRoomByCode(roomCode);
+  const updateRoomMutation = useUpdateRoom();
+  const deleteRoomMutation = useDeleteOrLeaveRoom();
+
+  const loading = roomQuery.isLoading;
+  const errorMessage = roomQuery.error instanceof Error ? roomQuery.error.message : "";
+  const room = (roomQuery.data?.room ?? null) as RoomDetailData | null;
+  const access = (roomQuery.data?.access ?? { is_owner: false, is_member: false }) as RoomAccess;
+
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [formData, setFormData] = useState<RoomFormData>({
     project_theme: "",
@@ -50,77 +53,25 @@ export default function RoomDetail() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-
+    const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login", { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!room || editing) {
       return;
     }
 
-    if (!roomCode) {
-      setErrorMessage("Room code tidak valid.");
-      setLoading(false);
-      return;
-    }
-
-    const loadRoom = async () => {
-      try {
-        setErrorMessage("");
-
-        const response = await fetch(`${API_BASE_URL}/api/rooms/${roomCode}`, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.status === 401) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("auth_user");
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        const payload = (await response.json()) as {
-          data?:
-            | RoomDetailData
-            | {
-                room?: RoomDetailData;
-                access?: RoomAccess;
-              };
-          message?: string;
-        };
-
-        if (!response.ok) {
-          setErrorMessage(payload.message || "Gagal memuat detail room.");
-          return;
-        }
-
-        const data = payload.data;
-        const fetchedRoom = data && "room" in data ? data.room ?? null : (data as RoomDetailData | null);
-        const fetchedAccess = data && "room" in data ? data.access ?? { is_owner: true, is_member: true } : { is_owner: true, is_member: true };
-
-        setRoom(fetchedRoom);
-        setAccess(fetchedAccess);
-
-        if (fetchedRoom) {
-          setFormData({
-            project_theme: fetchedRoom.project_theme,
-            roles: Array.isArray(fetchedRoom.roles) ? fetchedRoom.roles.join(", ") : "",
-            max_per_group: fetchedRoom.max_per_group,
-            number_of_groups: fetchedRoom.number_of_groups,
-            status: fetchedRoom.status,
-          });
-        }
-      } catch {
-        setErrorMessage("Gagal memuat detail room.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadRoom();
-  }, [API_BASE_URL, navigate, roomCode]);
+    setFormData({
+      project_theme: room.project_theme,
+      roles: room.roles.join(", "),
+      max_per_group: room.max_per_group,
+      number_of_groups: room.number_of_groups,
+      status: room.status,
+    });
+  }, [editing, room]);
 
   const roleList = useMemo(() => {
     if (!room?.roles || room.roles.length === 0) return "-";
@@ -158,12 +109,6 @@ export default function RoomDetail() {
   const handleSaveUpdate = async () => {
     if (!roomCode) return;
 
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
     const parsedRoles = formData.roles
       .split(",")
       .map((role) => role.trim())
@@ -174,57 +119,28 @@ export default function RoomDetail() {
       return;
     }
 
-    setSaving(true);
     setActionError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomCode}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          project_theme: formData.project_theme.trim(),
-          roles: parsedRoles,
-          max_per_group: Number(formData.max_per_group),
-          number_of_groups: Number(formData.number_of_groups),
-          status: formData.status,
-        }),
+      await updateRoomMutation.mutateAsync({
+        roomCode,
+        project_theme: formData.project_theme.trim(),
+        roles: parsedRoles,
+        max_per_group: Number(formData.max_per_group),
+        number_of_groups: Number(formData.number_of_groups),
+        status: formData.status,
       });
-
-      const payload = (await response.json()) as { data?: RoomDetailData; message?: string; errors?: Record<string, string[]> };
-
-      if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (!response.ok) {
-        const firstValidation = payload.errors ? Object.values(payload.errors)[0] : null;
-        const firstValidationMessage = Array.isArray(firstValidation) ? firstValidation[0] : null;
-        setActionError(firstValidationMessage || payload.message || "Gagal update room.");
-        return;
-      }
-
-      if (payload.data) {
-        setRoom(payload.data);
-      }
       setEditing(false);
-    } catch {
-      setActionError("Gagal update room.");
-    } finally {
-      setSaving(false);
+      await roomQuery.refetch();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Gagal update room.");
     }
   };
 
   const handleDeleteOrLeave = async () => {
-    if (!roomCode || actionLoading) return;
+    if (!roomCode || deleteRoomMutation.isPending) return;
 
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login", { replace: true });
       return;
@@ -238,37 +154,13 @@ export default function RoomDetail() {
       return;
     }
 
-    setActionLoading(true);
     setActionError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomCode}`, {
-        method: "DELETE",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const payload = (await response.json()) as { message?: string };
-
-      if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (!response.ok) {
-        setActionError(payload.message || "Aksi gagal diproses.");
-        return;
-      }
-
+      await deleteRoomMutation.mutateAsync({ roomCode });
       navigate("/dashboard", { replace: true });
-    } catch {
-      setActionError("Aksi gagal diproses.");
-    } finally {
-      setActionLoading(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Aksi gagal diproses.");
     }
   };
 
@@ -297,11 +189,11 @@ export default function RoomDetail() {
 
             {access.is_owner && editing && (
               <>
-                <button className="logout-btn" style={{ width: "auto" }} onClick={handleCancelEdit} disabled={saving}>
+                <button className="logout-btn" style={{ width: "auto" }} onClick={handleCancelEdit} disabled={updateRoomMutation.isPending}>
                   Batal
                 </button>
-                <button className="logout-btn" style={{ width: "auto" }} onClick={handleSaveUpdate} disabled={saving}>
-                  {saving ? "Saving..." : "Simpan"}
+                <button className="logout-btn" style={{ width: "auto" }} onClick={handleSaveUpdate} disabled={updateRoomMutation.isPending}>
+                  {updateRoomMutation.isPending ? "Saving..." : "Simpan"}
                 </button>
               </>
             )}
@@ -310,9 +202,9 @@ export default function RoomDetail() {
               className="logout-btn"
               style={{ width: "auto", background: access.is_owner ? "#b3261e" : undefined }}
               onClick={handleDeleteOrLeave}
-              disabled={actionLoading}
+              disabled={deleteRoomMutation.isPending}
             >
-              {actionLoading ? "Processing..." : access.is_owner ? "Hapus Room" : "Leave Room"}
+              {deleteRoomMutation.isPending ? "Processing..." : access.is_owner ? "Hapus Room" : "Leave Room"}
             </button>
 
             <button className="logout-btn" style={{ width: "auto" }} onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
