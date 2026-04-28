@@ -52,7 +52,7 @@ function StepBasics({ data, onChange }: { data: RoomData; onChange: (d: Partial<
   return (
     <div className="cr-step">
       <div>
-        <h2 className="cr-step-title">Define the Core Pulse</h2>
+        <h2 className="cr-step-title">Give Your Room a Name</h2>
         <p className="cr-step-desc">
           Establish the fundamental frequency of your project. This identity will resonate through every subsequent layer of development.
         </p>

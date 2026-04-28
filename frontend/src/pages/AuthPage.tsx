@@ -478,22 +478,22 @@ export default function AuthPage() {
                   <div style={{ flex: 1 }}>
                     {mode === "register" ? (
                       <>
-                        <Field label="Nickname" placeholder="e.g. Ana Zumrotu"
+                        <Field label="Nickname" placeholder="Enter Nickname"
                           value={reg.nickname} onChange={(v) => setReg({ ...reg, nickname: v })} />
-                        <Field label="Username" placeholder="@ana"
+                        <Field label="Username" placeholder="Enter Username"
                           value={reg.username} onChange={(v) => setReg({ ...reg, username: v })} />
-                        <Field label="Email" type="email" placeholder="ana@example.com"
+                        <Field label="Email" type="email" placeholder="projectpals@example.com"
                           value={reg.email} onChange={(v) => setReg({ ...reg, email: v })} />
-                        <Field label="Password" type="password" placeholder="••••••••"
+                        <Field label="Password" type="password" placeholder="Enter Password"
                           value={reg.password} onChange={(v) => setReg({ ...reg, password: v })}
                           onFocus={() => setPasswordFocused(true)}
                           onBlur={() => setPasswordFocused(false)} />
                       </>
                     ) : (
                       <>
-                        <Field label="Username / Email" placeholder="@ana"
+                        <Field label="Email" placeholder="projectpals@example.com"
                           value={log.identifier} onChange={(v) => setLog({ ...log, identifier: v })} />
-                        <Field label="Password" type="password" placeholder="••••••••"
+                        <Field label="Password" type="password" placeholder="Enter Password"
                           value={log.password} onChange={(v) => setLog({ ...log, password: v })}
                           onFocus={() => setPasswordFocused(true)}
                           onBlur={() => setPasswordFocused(false)} />
