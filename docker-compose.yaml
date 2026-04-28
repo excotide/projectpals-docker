@@ -86,8 +86,8 @@ services:
     restart: unless-stopped
     environment:
       ORACLE_PASSWORD: oracle123        # password untuk SYSTEM
-      APP_USER: laravel                 # auto-bikin user khusus
-      APP_USER_PASSWORD: laravel123
+      APP_USER: projectpals             # auto-bikin user khusus
+      APP_USER_PASSWORD: pals_pass
     ports:
       - "1523:1521"
     volumes:
