@@ -12,6 +12,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->replaceInGroup(
+            'web',
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+            \App\Http\Middleware\VerifyCsrfToken::class
+        );
+        $middleware->replaceInGroup(
+            'web',
+            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            \App\Http\Middleware\VerifyCsrfToken::class
+        );
         $middleware->appendToGroup('api', \App\Http\Middleware\ForceJsonResponse::class);
         $middleware->alias([
             'admin.session' => \App\Http\Middleware\AdminSessionAuth::class,

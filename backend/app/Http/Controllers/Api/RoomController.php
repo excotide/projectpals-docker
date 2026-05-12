@@ -48,8 +48,15 @@ class RoomController extends Controller
 
     public function myRooms(): JsonResponse
     {
+        $userId = auth()->id();
+
         $rooms = Room::query()
-            ->where('created_by', auth()->id())
+            ->where(function ($q) use ($userId): void {
+                $q->where('created_by', $userId)
+                  ->orWhereHas('members', function ($mq) use ($userId): void {
+                      $mq->where('user_id', $userId);
+                  });
+            })
             ->latest('id')
             ->get();
 
@@ -91,6 +98,61 @@ class RoomController extends Controller
                     'is_owner' => (int) $room->created_by === (int) $userId,
                     'is_member' => true,
                 ],
+            ],
+        ]);
+    }
+
+    public function members(string $roomCode): JsonResponse
+    {
+        $userId = auth()->id();
+
+        $room = Room::query()
+            ->where('room_code', Str::upper($roomCode))
+            ->where(function ($query) use ($userId): void {
+                $query
+                    ->where('created_by', $userId)
+                    ->orWhereHas('members', function ($memberQuery) use ($userId): void {
+                        $memberQuery->where('user_id', $userId);
+                    });
+            })
+            ->first();
+
+        if (! $room) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Room not found.',
+            ], 404);
+        }
+
+        $members = $room->members()
+            ->with('user')
+            ->latest('id')
+            ->get()
+            ->map(fn (RoomMember $member) => [
+                'id' => $member->id,
+                'joined_at' => $member->joined_at,
+                'primary_role' => $member->primary_role,
+                'backup_role' => $member->backup_role,
+                'productivity_windows' => $member->productivity_windows,
+                'user' => $member->user ? [
+                    'id' => $member->user->id,
+                    'name' => $member->user->name,
+                    'username' => $member->user->username,
+                    'email' => $member->user->email,
+                ] : null,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Joined room members fetched successfully.',
+            'data' => [
+                'room' => [
+                    'id' => $room->id,
+                    'room_code' => $room->room_code,
+                    'project_theme' => $room->project_theme,
+                    'status' => $room->status,
+                ],
+                'members' => $members,
             ],
         ]);
     }
@@ -218,6 +280,12 @@ class RoomController extends Controller
             'environments' => $validated['environments'] ?? ['flexible'],
             'created_by' => auth()->id(),
             'room_code' => Room::generateUniqueCode(),
+        ])->refresh();
+
+        RoomMember::create([
+            'room_id' => $room->id,
+            'user_id' => auth()->id(),
+            'joined_at' => now(),
         ]);
 
         return response()->json([

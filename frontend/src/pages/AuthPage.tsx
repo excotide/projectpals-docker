@@ -156,7 +156,7 @@ export default function AuthPage() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const [reg, setReg] = useState({ nickname: "", username: "", email: "", password: "" });
+  const [reg, setReg] = useState({ name: "", username: "", email: "", password: "" });
   const [log, setLog] = useState({ identifier: "", password: "" });
   const [remember, setRemember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -194,12 +194,45 @@ export default function AuthPage() {
       return;
     }
 
+    if (mode === "register") {
+      if (!reg.name.trim()) {
+        setErrorMessage("Nama wajib diisi.");
+        return;
+      }
+
+      if (!reg.username.trim()) {
+        setErrorMessage("Username wajib diisi.");
+        return;
+      }
+
+      if (!reg.email.trim()) {
+        setErrorMessage("Email wajib diisi.");
+        return;
+      }
+
+      if (!reg.email.includes("@")) {
+        setErrorMessage("Format email tidak valid.");
+        return;
+      }
+
+      if (!reg.password.trim()) {
+        setErrorMessage("Password wajib diisi.");
+        return;
+      }
+
+      if (reg.password.length < 8) {
+        setErrorMessage("Password minimal 8 karakter.");
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
       if (mode === "register") {
         await registerMutation.mutateAsync({
-          name: reg.nickname.trim() || reg.username.trim(),
+          name: reg.name.trim(),
+          username: reg.username.trim(),
           email: reg.email.trim(),
           password: reg.password,
           password_confirmation: reg.password,
@@ -478,8 +511,8 @@ export default function AuthPage() {
                   <div style={{ flex: 1 }}>
                     {mode === "register" ? (
                       <>
-                        <Field label="Nickname" placeholder="Enter Nickname"
-                          value={reg.nickname} onChange={(v) => setReg({ ...reg, nickname: v })} />
+                        <Field label="Name" placeholder="Enter Name"
+                          value={reg.name} onChange={(v) => setReg({ ...reg, name: v })} />
                         <Field label="Username" placeholder="Enter Username"
                           value={reg.username} onChange={(v) => setReg({ ...reg, username: v })} />
                         <Field label="Email" type="email" placeholder="projectpals@example.com"

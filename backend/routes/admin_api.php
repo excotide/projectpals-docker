@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminLoginController;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
 $adminPrefix = trim((string) config('admin.prefix', env('ADMIN_PREFIX', 'pp-console')));
 
 Route::prefix($adminPrefix !== '' ? $adminPrefix : 'pp-console')
     ->middleware(['web'])
+    ->withoutMiddleware([PreventRequestForgery::class])
     ->group(function (): void {
         Route::get('/me', [AdminLoginController::class, 'me']);
         Route::post('/login', [AdminLoginController::class, 'login']);
