@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import "../styles/Dashboard.css";
 import { useDeleteOrLeaveRoom, useRoomByCode, useUpdateRoom } from "../hooks/useRooms";
 
+type RoomOwner = {
+  id: number;
+  name: string;
+  username: string;
+};
+
 type RoomDetailData = {
   id: number;
   project_theme: string;
@@ -14,6 +20,7 @@ type RoomDetailData = {
   number_of_groups: number;
   status: "open" | "matching" | "ongoing" | "closed";
   created_at: string;
+  owner?: RoomOwner;
 };
 
 type RoomAccess = {
@@ -249,8 +256,16 @@ export default function RoomDetail() {
                 <span>{(editing ? formData.status : room.status).toUpperCase()}</span>
               </div>
               <div className="project-card">
-                <span>Room Code: {room.room_code}</span>
-                <span className="badge">{access.is_owner ? "Owner View" : "Member View"}</span>
+                <div>
+                  <span>Room Code: {room.room_code}</span>
+                  {room.owner && (
+                    <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.6 }}>
+                      Created by {room.owner.name}
+                      <span style={{ marginLeft: 6, opacity: 0.7 }}>{room.owner.username}</span>
+                    </p>
+                  )}
+                </div>
+                <span className="badge">{access.is_owner ? "Owner" : "Member"}</span>
               </div>
             </div>
 

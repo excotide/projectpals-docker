@@ -5,7 +5,8 @@ import CreateRoom from "./pages/CreateRoom"
 import JoinRoom from "./pages/JoinRoom"
 import LandingPage from "./pages/LandingPage"
 import Dashboard from "./pages/Dashboard"
-import RoomDetail from "./pages/RoomDetail"
+import MyRooms from "./pages/MyRooms"
+import RoomDetailRouter from "./pages/RoomDetailRouter"
 import AdminLogin from "./pages/admin/AdminLogin"
 import AdminPanel from "./pages/admin/AdminPanel"
 import AdminRoute from "./components/admin/AdminRoute"
@@ -56,10 +57,18 @@ export default function App() {
           )}
         />
         <Route
+          path="/my-rooms"
+          element={(
+            <RequireAuth>
+              <MyRooms />
+            </RequireAuth>
+          )}
+        />
+        <Route
           path="/rooms/:roomCode"
           element={(
             <RequireAuth>
-              <RoomDetail />
+              <RoomDetailRouter />
             </RequireAuth>
           )}
         />

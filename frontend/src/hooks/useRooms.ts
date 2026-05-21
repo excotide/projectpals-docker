@@ -10,12 +10,19 @@ export interface Room {
   [key: string]: unknown
 }
 
+export interface RoomOwner {
+  id: number | string
+  name: string
+  username: string
+}
+
 export interface RoomDetail extends Room {
   roles?: string[]
   productivity_windows?: string[]
   environments?: string[]
   number_of_groups?: number
   created_at?: string
+  owner?: RoomOwner
 }
 
 export interface RoomAccess {
@@ -87,6 +94,32 @@ export interface DeleteOrLeaveRoomPayload {
   roomCode: string
 }
 
+export interface RoomMemberUser {
+  id: number | string
+  name: string
+  username: string
+  email: string
+}
+
+export interface RoomMemberItem {
+  id: number | string
+  joined_at: string | null
+  primary_role: string | null
+  backup_role: string | null
+  productivity_windows: string[] | null
+  user: RoomMemberUser | null
+}
+
+export interface RoomMembersResponse {
+  room: {
+    id: number | string
+    room_code: string
+    project_theme: string
+    status: string
+  }
+  members: RoomMemberItem[]
+}
+
 const roomKeys = {
   all: ['rooms'] as const,
   list: () => [...roomKeys.all, 'list'] as const,
@@ -94,6 +127,7 @@ const roomKeys = {
   detail: (id: number | string) => [...roomKeys.all, 'detail', id] as const,
   codeDetail: (roomCode: string) => [...roomKeys.all, 'code-detail', roomCode] as const,
   joinPreview: (roomCode: string) => [...roomKeys.all, 'join-preview', roomCode] as const,
+  members: (roomCode: string) => [...roomKeys.all, 'members', roomCode] as const,
 }
 
 export function useRooms() {
@@ -149,6 +183,17 @@ export function useRoomByCode(roomCode?: string) {
           is_member: true,
         },
       } satisfies RoomDetailResponse
+    },
+    enabled: Boolean(roomCode),
+  })
+}
+
+export function useRoomMembers(roomCode?: string) {
+  return useQuery({
+    queryKey: roomKeys.members(roomCode ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<RoomMembersResponse>(`/rooms/${roomCode}/members`)
+      return response.data
     },
     enabled: Boolean(roomCode),
   })
@@ -236,6 +281,24 @@ export function useUpdateRoom() {
         queryClient.invalidateQueries({ queryKey: roomKeys.codeDetail(roomCode) }),
         queryClient.invalidateQueries({ queryKey: roomKeys.mine() }),
       ])
+    },
+  })
+}
+
+export interface RemoveMemberPayload {
+  roomCode: string
+  memberId: number | string
+}
+
+export function useRemoveMember() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ roomCode, memberId }: RemoveMemberPayload) => {
+      await apiDelete<null>(`/rooms/${roomCode}/members/${memberId}`)
+    },
+    onSuccess: async (_, { roomCode }) => {
+      await queryClient.invalidateQueries({ queryKey: roomKeys.members(roomCode) })
     },
   })
 }
