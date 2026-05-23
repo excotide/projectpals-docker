@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
+import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import {
   useDeleteOrLeaveRoom,
   useRemoveMember,
   useRoomByCode,
   useRoomMembers,
+  useRoomTeams,
+  useStartMatching,
   useUpdateRoom,
   type RoomMemberItem,
-} from "../hooks/useRooms";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+} from "../../hooks/useRooms";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 // ─── Role color palette ────────────────────────────────────────────────────────
 
@@ -53,13 +55,14 @@ const IconX      = () => <svg width="12" height="12" fill="none" viewBox="0 0 24
 
 // ─── Status ────────────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS = ["open", "matching", "ongoing", "closed"] as const;
+const STATUS_OPTIONS = ["open", "matching", "ongoing", "matched", "closed"] as const;
 type RoomStatus = typeof STATUS_OPTIONS[number];
 
 const STATUS_PILL: Record<string, string> = {
   open:     "border-green-500 text-green-500",
   matching: "border-purple-400 text-purple-400",
   ongoing:  "border-blue-500 text-blue-500",
+  matched:  "border-emerald-500 text-emerald-400",
   closed:   "border-slate-500 text-slate-500",
 };
 
@@ -96,6 +99,11 @@ export default function DetailOwnerRoom() {
   const updateMutation  = useUpdateRoom();
   const deleteMutation  = useDeleteOrLeaveRoom();
   const removeMember    = useRemoveMember();
+  const startMatching   = useStartMatching();
+
+  const roomStatus = roomQuery.data?.room?.status;
+  const isMatched = roomStatus === "matched";
+  const teamsQuery = useRoomTeams(roomCode, { enabled: isMatched });
 
   const [activeNav,  setActiveNav]  = useState("My Rooms");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -104,6 +112,8 @@ export default function DetailOwnerRoom() {
   const [memberSearch, setMemberSearch] = useState("");
   const [confirmMemberId, setConfirmMemberId] = useState<number | string | null>(null);
   const [confirmRoomDelete, setConfirmRoomDelete] = useState(false);
+  const [confirmMatch, setConfirmMatch] = useState(false);
+  const [matchErr, setMatchErr] = useState("");
   const [copied, setCopied] = useState(false);
 
   // Edit form state
@@ -150,6 +160,7 @@ export default function DetailOwnerRoom() {
     if (label === "Create Room") navigate("/create-room");
     if (label === "Join Room")   navigate("/join-room");
     if (label === "My Rooms")    navigate("/my-rooms");
+    if (label === "Profile")     navigate("/profile");
   };
 
   const handleLogout = async () => {
@@ -237,6 +248,22 @@ export default function DetailOwnerRoom() {
     await handleDeleteMember(confirmMemberId);
     setConfirmMemberId(null);
   };
+
+  const handleStartMatching = async () => {
+    if (!roomCode || startMatching.isPending) return;
+    setMatchErr("");
+    try {
+      await startMatching.mutateAsync({ roomCode });
+      setConfirmMatch(false);
+      await roomQuery.refetch();
+    } catch (err) {
+      const anyErr = err as { payload?: { message?: string } };
+      setMatchErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to start matching."));
+    }
+  };
+
+  const openConfirmMatch = () => { setMatchErr(""); setConfirmMatch(true); };
+  const closeConfirmMatch = () => { if (!startMatching.isPending) setConfirmMatch(false); };
 
   const handleCopyRoomCode = () => {
     if (!room?.room_code) return;
@@ -380,7 +407,89 @@ export default function DetailOwnerRoom() {
 
               </section>
 
-              {/* ── Bottom row ──────────────────────────────────────────────────── */}
+              {/* ── Teams view (when matched) ─────────────────────────────────────── */}
+              {isMatched && (
+                <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-emerald-400">✦</span>
+                      <h2 className="text-lg font-semibold text-white">Teams formed</h2>
+                      <span className="text-xs text-slate-500 bg-pp-elevated px-2 py-0.5 rounded-full">
+                        {teamsQuery.data?.teams?.length ?? 0} teams
+                      </span>
+                    </div>
+                  </div>
+
+                  {teamsQuery.isLoading && (
+                    <p className="text-center text-slate-600 text-sm py-8">Loading teams...</p>
+                  )}
+
+                  {!teamsQuery.isLoading && teamsQuery.data && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        {teamsQuery.data.teams.map((team) => (
+                          <div key={team.team_number} className="bg-pp-elevated border border-pp-border rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-300 text-[11px] font-bold grid place-items-center">{team.team_number}</span>
+                                Team {team.team_number}
+                              </h3>
+                              <span className="text-[10px] text-slate-500">
+                                {team.members.length} / {teamsQuery.data?.room.max_per_group}
+                              </span>
+                            </div>
+                            {team.members.length === 0 && <p className="text-xs text-slate-600 italic">Empty</p>}
+                            <div className="space-y-2">
+                              {team.members.map((tm) => {
+                                const name = tm.user?.name ?? "Unknown";
+                                const colors = getRoleColor(tm.assigned_role, allRoles);
+                                return (
+                                  <div key={`${team.team_number}-${tm.room_member_id}`} className="flex items-center gap-3 p-2 rounded-lg bg-pp-bg border border-pp-border">
+                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${colors.avatar}`}>
+                                      {getInitials(name)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-white truncate">{name}</p>
+                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
+                                          {tm.assigned_role}
+                                        </span>
+                                        {tm.user?.username && (
+                                          <span className="text-[10px] text-slate-600">@{tm.user.username}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-emerald-400 shrink-0">{tm.score.toFixed(3)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {teamsQuery.data.unassigned.length > 0 && (
+                        <div className="mt-5 border-t border-pp-border pt-4">
+                          <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-medium">
+                            Unassigned ({teamsQuery.data.unassigned.length})
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {teamsQuery.data.unassigned.map((u) => (
+                              <span key={u.room_member_id} className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                                {u.user?.name ?? `rm#${u.room_member_id}`}
+                                {u.primary_role && <span className="opacity-60"> · {u.primary_role}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </section>
+              )}
+
+              {/* ── Bottom row (members + smart matching) — hidden when matched ──── */}
+              {!isMatched && (
               <div className="flex gap-5">
 
                 {/* Members */}
@@ -484,11 +593,17 @@ export default function DetailOwnerRoom() {
                     </div>
                   </div>
 
-                  <button className="relative mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold hover:bg-blue-50 active:scale-[0.98] transition-all shadow-lg shadow-blue-900/30 border-none cursor-pointer">
-                    Start Matching <IconArrow />
+                  <button
+                    onClick={openConfirmMatch}
+                    disabled={startMatching.isPending || isMatched || localMembers.length < 2}
+                    title={isMatched ? "Room already matched" : localMembers.length < 2 ? "Need at least 2 members to match" : ""}
+                    className="relative mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold hover:bg-blue-50 active:scale-[0.98] transition-all shadow-lg shadow-blue-900/30 border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {startMatching.isPending ? "Matching..." : isMatched ? "Already matched" : <>Start Matching <IconArrow /></>}
                   </button>
                 </aside>
               </div>
+              )}
             </>
           )}
         </main>
@@ -517,6 +632,41 @@ export default function DetailOwnerRoom() {
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
               >
                 Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeConfirmMatch} />
+          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+            <h3 className="text-base font-bold text-slate-100 mb-2">Start smart matching?</h3>
+            <p className="text-sm text-[#8892a4] mb-5">
+              Form teams from <strong>{localMembers.length}</strong> members into <strong>{room?.number_of_groups}</strong> group(s)
+              of up to <strong>{room?.max_per_group}</strong> each. The room status will become <code>matched</code> and members will be
+              assigned to teams.
+            </p>
+            {matchErr && (
+              <div className="bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px] mb-4">
+                {matchErr}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={closeConfirmMatch}
+                disabled={startMatching.isPending}
+                className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartMatching}
+                disabled={startMatching.isPending}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {startMatching.isPending ? "Matching..." : "Yes, Start"}
               </button>
             </div>
           </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
-import { useMyRooms } from "../hooks/useRooms";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import { useCurrentUser, useLogout } from "../../hooks/useAuth";
+import { useMyRooms } from "../../hooks/useRooms";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 // ============================================================
 // TYPES
@@ -31,16 +31,18 @@ type RoomItem = {
 };
 
 const STATUS_BADGE: Record<string, { border: string; text: string; label: string }> = {
-  open:     { border: "border-green-500",  text: "text-green-500",  label: "Open" },
-  matching: { border: "border-purple-400", text: "text-purple-400", label: "Matching" },
-  ongoing:  { border: "border-blue-500",   text: "text-blue-500",   label: "Ongoing" },
-  closed:   { border: "border-slate-500",  text: "text-slate-500",  label: "Closed" },
+  open:     { border: "border-green-500",   text: "text-green-500",   label: "Open" },
+  matching: { border: "border-purple-400",  text: "text-purple-400",  label: "Matching" },
+  ongoing:  { border: "border-blue-500",    text: "text-blue-500",    label: "Ongoing" },
+  matched:  { border: "border-emerald-500", text: "text-emerald-400", label: "Matched" },
+  closed:   { border: "border-slate-500",   text: "text-slate-500",   label: "Closed" },
 };
 
 const FILTER_TABS = [
   { key: "all",      label: "All" },
   { key: "open",     label: "Open" },
   { key: "matching", label: "Matching" },
+  { key: "matched",  label: "Matched" },
   { key: "ongoing",  label: "Ongoing" },
   { key: "closed",   label: "Closed" },
 ] as const;
@@ -202,6 +204,7 @@ export default function MyRooms() {
     if (label === "Dashboard")   navigate("/dashboard");
     if (label === "Create Room") navigate("/create-room");
     if (label === "Join Room")   navigate("/join-room");
+    if (label === "Profile")     navigate("/profile");
   };
 
   const handleLogout = async () => {

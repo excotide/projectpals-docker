@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useLogin, useRegister } from "../hooks/useAuth";
+import { useLogin, useRegister } from "../../hooks/useAuth";
 
 // ─── Eye tracking hook ────────────────────────────────────────────────────────
 function useEyePos(covering: boolean) {

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
-import { useMyRooms } from "../hooks/useRooms";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import { useCurrentUser, useLogout } from "../../hooks/useAuth";
+import { useMyRooms } from "../../hooks/useRooms";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 // ============================================================
 // TYPES
@@ -122,6 +122,7 @@ export default function Dashboard() {
     if (label === "Create Room") navigate("/create-room");
     if (label === "Join Room")   navigate("/join-room");
     if (label === "My Rooms")    navigate("/my-rooms");
+    if (label === "Profile")     navigate("/profile");
   };
 
   const handleJoinRoom = () => {

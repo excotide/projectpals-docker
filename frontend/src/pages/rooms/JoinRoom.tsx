@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
-import { useFinalizeJoinRoom, useJoinRoomPreview } from "../hooks/useRooms";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import { useCurrentUser, useLogout } from "../../hooks/useAuth";
+import { useFinalizeJoinRoom, useJoinRoomPreview } from "../../hooks/useRooms";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
 type RoleType = "primary" | "backup";
@@ -194,6 +194,7 @@ export default function JoinRoom() {
     if (label === "Create Room") navigate("/create-room");
     if (label === "Join Room") navigate("/join-room");
     if (label === "My Rooms") navigate("/my-rooms");
+    if (label === "Profile") navigate("/profile");
   };
 
   const handleLogout = async () => {

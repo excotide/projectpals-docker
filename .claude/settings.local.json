@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l database/migrations/2026_05_24_000000_add_matched_to_rooms_status_enum.php)"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import "../styles/Dashboard.css";
-import { useDeleteOrLeaveRoom, useRoomByCode, useUpdateRoom } from "../hooks/useRooms";
+import "../../styles/Dashboard.css";
+import { useDeleteOrLeaveRoom, useRoomByCode, useUpdateRoom } from "../../hooks/useRooms";
 
 type RoomOwner = {
   id: number;

@@ -81,13 +81,69 @@ export interface FinalizeJoinResult {
   }
 }
 
+export type RoomStatus = 'open' | 'matching' | 'ongoing' | 'closed' | 'matched'
+
 export interface UpdateRoomPayload {
   roomCode: string
   project_theme: string
   roles: string[]
   max_per_group: number
   number_of_groups: number
-  status: 'open' | 'matching' | 'ongoing' | 'closed'
+  status: RoomStatus
+}
+
+export interface RoomTeamMember {
+  room_member_id: number | string
+  assigned_role: string
+  score: number
+  primary_role: string | null
+  backup_role: string | null
+  user: RoomMemberUser | null
+}
+
+export interface RoomTeam {
+  team_number: number
+  members: RoomTeamMember[]
+}
+
+export interface RoomUnassigned {
+  room_member_id: number | string
+  primary_role: string | null
+  backup_role: string | null
+  user: RoomMemberUser | null
+}
+
+export interface RoomTeamsResponse {
+  room: {
+    id: number | string
+    room_code: string
+    project_theme: string
+    status: string
+    max_per_group: number
+    number_of_groups: number
+  }
+  teams: RoomTeam[]
+  unassigned: RoomUnassigned[]
+}
+
+export interface MatchResult {
+  teams: Array<{
+    team_number: number
+    members: Array<{
+      room_member_id: number | string
+      assigned_role: string
+      score: number
+      user: { id: number | string; name: string; username: string } | null
+    }>
+  }>
+  unassigned: number[]
+  meta: {
+    c: number
+    k_teams: number
+    max_per_group: number
+    total_members: number
+    total_picks: number
+  }
 }
 
 export interface DeleteOrLeaveRoomPayload {
@@ -128,6 +184,7 @@ const roomKeys = {
   codeDetail: (roomCode: string) => [...roomKeys.all, 'code-detail', roomCode] as const,
   joinPreview: (roomCode: string) => [...roomKeys.all, 'join-preview', roomCode] as const,
   members: (roomCode: string) => [...roomKeys.all, 'members', roomCode] as const,
+  teams: (roomCode: string) => [...roomKeys.all, 'teams', roomCode] as const,
 }
 
 export function useRooms() {
@@ -314,6 +371,36 @@ export function useDeleteOrLeaveRoom() {
     onSuccess: async (roomCode) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: roomKeys.codeDetail(roomCode) }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.mine() }),
+      ])
+    },
+  })
+}
+
+export function useRoomTeams(roomCode?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roomKeys.teams(roomCode ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<RoomTeamsResponse>(`/rooms/${roomCode}/teams`)
+      return response.data
+    },
+    enabled: Boolean(roomCode) && (options?.enabled ?? true),
+  })
+}
+
+export function useStartMatching() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ roomCode }: { roomCode: string }) => {
+      const response = await apiPost<MatchResult>(`/rooms/${roomCode}/match`)
+      return { roomCode, data: response.data }
+    },
+    onSuccess: async ({ roomCode }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: roomKeys.codeDetail(roomCode) }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.members(roomCode) }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) }),
         queryClient.invalidateQueries({ queryKey: roomKeys.mine() }),
       ])
     },

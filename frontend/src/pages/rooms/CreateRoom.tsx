@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
-import { useCreateRoom } from "../hooks/useRooms";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import { useCurrentUser, useLogout } from "../../hooks/useAuth";
+import { useCreateRoom } from "../../hooks/useRooms";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 // ============================================================
 // TYPES
@@ -237,6 +237,7 @@ export default function CreateRoom() {
     if (label === "Dashboard") navigate("/dashboard");
     if (label === "Join Room")  navigate("/join-room");
     if (label === "My Rooms")   navigate("/my-rooms");
+    if (label === "Profile")    navigate("/profile");
   };
 
   const handleLogout = async () => {

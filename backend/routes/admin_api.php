@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\DevController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
@@ -19,5 +20,10 @@ Route::prefix($adminPrefix !== '' ? $adminPrefix : 'pp-console')
             Route::get('/rooms', [AdminLoginController::class, 'rooms']);
             Route::get('/analytics', [AdminLoginController::class, 'analytics']);
             Route::get('/logs', [AdminLoginController::class, 'logs']);
+
+            Route::get('/dev/users', [DevController::class, 'users']);
+            Route::post('/dev/simulate-matching', [DevController::class, 'simulateMatching']);
+            Route::post('/dev/create-room', [DevController::class, 'createRoom']);
+            Route::get('/dev/matched-rooms', [DevController::class, 'matchedRooms']);
         });
     });

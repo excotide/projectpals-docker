@@ -125,15 +125,26 @@ export default function Sidebar({ activeNav, onNavClick, loggingOut, onLogout }:
 
       {/* Bottom nav */}
       <div className="flex flex-col gap-0.5 px-3">
-        {BOTTOM_NAV.map((item) => (
-          <button
-            key={item.label}
-            className="flex items-center gap-3 px-3 py-[9px] rounded-lg text-sm text-slate-500 hover:bg-pp-elevated hover:text-slate-400 w-full text-left transition-colors duration-150"
-          >
-            {item.icon}
-            {item.label}
-          </button>
-        ))}
+        {BOTTOM_NAV.map((item) => {
+          const isActive = activeNav === item.label;
+          return (
+            <button
+              key={item.label}
+              onClick={() => onNavClick(item.label)}
+              className={`relative flex items-center gap-3 px-3 py-[9px] rounded-lg text-sm w-full text-left transition-colors duration-150 ${
+                isActive
+                  ? "bg-pp-active text-blue-500 font-semibold"
+                  : "text-slate-500 font-normal hover:bg-pp-elevated hover:text-slate-400"
+              }`}
+            >
+              {isActive && (
+                <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-l-sm" />
+              )}
+              {item.icon}
+              {item.label}
+            </button>
+          );
+        })}
 
         {/* Logout */}
         <button

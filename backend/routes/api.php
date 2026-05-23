@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\RoomController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/rooms/{roomCode}', [RoomController::class, 'update']);
     Route::delete('/rooms/{roomCode}', [RoomController::class, 'destroy']);
     Route::post('/rooms/{roomCode}/leave', [RoomController::class, 'leave']);
+    Route::post('/rooms/{roomCode}/match', [MatchingController::class, 'match']);
+    Route::get('/rooms/{roomCode}/teams', [MatchingController::class, 'teams']);
     Route::post('/rooms/join', [RoomController::class, 'join']);
     Route::post('/rooms', [RoomController::class, 'store']);
 });

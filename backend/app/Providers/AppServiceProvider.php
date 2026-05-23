@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\App\Services\TeamFormation\ScoringService::class);
+        $this->app->singleton(\App\Services\TeamFormation\SnakeDraftService::class);
+        $this->app->singleton(\App\Services\TeamFormation\TeamFormationService::class);
     }
 
     /**

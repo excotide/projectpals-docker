@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useRoomByCode } from "../hooks/useRooms";
+import { useRoomByCode } from "../../hooks/useRooms";
 import DetailOwnerRoom from "./DetailOwnerRoom";
 import DetailMemberRoom from "./DetailMemberRoom";
 

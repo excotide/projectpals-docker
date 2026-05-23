@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import type { ReactNode } from "react"
-import AuthPage from "./pages/AuthPage"
-import CreateRoom from "./pages/CreateRoom"
-import JoinRoom from "./pages/JoinRoom"
-import LandingPage from "./pages/LandingPage"
-import Dashboard from "./pages/Dashboard"
-import MyRooms from "./pages/MyRooms"
-import RoomDetailRouter from "./pages/RoomDetailRouter"
+import AuthPage from "./pages/auth/AuthPage"
+import CreateRoom from "./pages/rooms/CreateRoom"
+import JoinRoom from "./pages/rooms/JoinRoom"
+import LandingPage from "./pages/landing/LandingPage"
+import Dashboard from "./pages/dashboard/Dashboard"
+import MyRooms from "./pages/rooms/MyRooms"
+import RoomDetailRouter from "./pages/rooms/RoomDetailRouter"
+import ProfilePage from "./pages/profile/ProfilePage"
 import AdminLogin from "./pages/admin/AdminLogin"
 import AdminPanel from "./pages/admin/AdminPanel"
 import AdminRoute from "./components/admin/AdminRoute"
@@ -69,6 +70,14 @@ export default function App() {
           element={(
             <RequireAuth>
               <RoomDetailRouter />
+            </RequireAuth>
+          )}
+        />
+        <Route
+          path="/profile"
+          element={(
+            <RequireAuth>
+              <ProfilePage />
             </RequireAuth>
           )}
         />
