@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/CreateRoom.css";
+import { useCurrentUser, useLogout } from "../hooks/useAuth";
 import { useFinalizeJoinRoom, useJoinRoomPreview } from "../hooks/useRooms";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
 type RoleType = "primary" | "backup";
@@ -56,16 +58,6 @@ const STEP_MAP: Partial<Record<Step, number>> = {
   hours: 3,
 };
 
-const IconX = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" />
-  </svg>
-);
-const IconChevronLeft = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
 const IconChevronRight = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
@@ -74,6 +66,8 @@ const IconChevronRight = () => (
 
 export default function JoinRoom() {
   const navigate = useNavigate();
+  const { data: user } = useCurrentUser();
+  const logoutMutation = useLogout();
   const [step, setStep] = useState<Step>("landing");
   const [code, setCode] = useState("");
   const [roleType, setRoleType] = useState<Record<string, RoleType>>({});
@@ -81,6 +75,8 @@ export default function JoinRoom() {
   const [roomRoles, setRoomRoles] = useState<Role[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [activeNav, setActiveNav] = useState("Join Room");
+  const [loggingOut, setLoggingOut] = useState(false);
   const joinPreviewQuery = useJoinRoomPreview(code.trim().toUpperCase());
   const finalizeJoinMutation = useFinalizeJoinRoom();
 
@@ -184,35 +180,90 @@ export default function JoinRoom() {
   const canProceedRole =
     Object.values(roleType).includes("primary") && Object.values(roleType).includes("backup");
 
-  const handleBack = () => {
-    if (step === "role") go("landing");
-    else if (step === "hours") go("role");
-    else navigate(-1);
+  const initials = useMemo(() => {
+    if (!user?.name) return "U";
+    const parts = user.name.trim().split(" ").filter(Boolean);
+    if (parts.length === 0) return "U";
+    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+    return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
+  }, [user?.name]);
+
+  const handleNavClick = (label: string) => {
+    setActiveNav(label);
+    if (label === "Dashboard") navigate("/dashboard");
+    if (label === "Create Room") navigate("/create-room");
+    if (label === "Join Room") navigate("/join-room");
+    if (label === "My Rooms") navigate("/my-rooms");
+  };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try { await logoutMutation.mutateAsync(); }
+    finally { navigate("/login", { replace: true }); setLoggingOut(false); }
+  };
+
+  const shell = (content: ReactNode) => (
+    <div className="flex h-screen bg-pp-bg font-sans text-slate-100 overflow-hidden">
+      <Sidebar
+        activeNav={activeNav}
+        onNavClick={handleNavClick}
+        loggingOut={loggingOut}
+        onLogout={handleLogout}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Topbar
+          initials={initials}
+          breadcrumbs={[
+            { label: "Dashboard", to: "/dashboard" },
+            { label: "Join Room" },
+          ]}
+        />
+        <main className="flex-1 overflow-y-auto px-8 py-7 pb-10">{content}</main>
+      </div>
+    </div>
+  );
+
+  const handleGoToRoom = () => {
+    const roomCode = code.trim().toUpperCase();
+    if (roomCode) navigate(`/rooms/${roomCode}`);
   };
 
   // ── Success screen ────────────────────────────────────────────────────────────
   if (step === "success") {
-    return (
-      <div className="cr-page">
-        <div className="cr-card">
-          <div className="cr-success">
-            <div className="cr-success-ring">
-              <svg viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return shell(
+      <div className="max-w-[520px] mx-auto">
+        <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
+          <div className="flex flex-col items-center text-center gap-5 py-6">
+            <div className="relative w-[88px] h-[88px]">
+              <svg viewBox="0 0 88 88" fill="none" className="w-[88px] h-[88px]">
                 <circle cx="44" cy="44" r="40" stroke="rgba(74,222,128,0.2)" strokeWidth="3" />
-                <circle cx="44" cy="44" r="40" stroke="#4ade80" strokeWidth="3" strokeLinecap="round"
-                  strokeDasharray="251" strokeDashoffset="0" style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+                <circle cx="44" cy="44" r="40" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeDasharray="251" strokeDashoffset="0" />
               </svg>
-              <div className="cr-success-check">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
             </div>
-            <h2 className="cr-success-title">Joined!</h2>
-            <p style={{ color: "var(--text-2)", fontSize: 13, lineHeight: 1.6, maxWidth: 260, textAlign: "center" }}>
+            <h2 className="m-0 text-[26px] font-extrabold text-slate-50">Joined!</h2>
+            <p className="m-0 text-[13px] text-slate-500 max-w-[280px]">
               You have successfully joined the room. Get ready to collaborate.
             </p>
-            <button className="cr-success-ok-btn" onClick={reset}>OK</button>
+            <div className="flex gap-3">
+              <button
+                className="px-6 py-2.5 bg-pp-border hover:bg-blue-600 text-slate-300 hover:text-white border-none rounded-lg text-[13px] font-semibold cursor-pointer transition-colors duration-200"
+                onClick={reset}
+              >
+                Back
+              </button>
+              <button
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 border-none rounded-lg text-white text-[13px] font-semibold cursor-pointer transition-colors duration-200"
+                onClick={handleGoToRoom}
+              >
+                Go to Room
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -221,31 +272,28 @@ export default function JoinRoom() {
 
   // ── Invalid screen ────────────────────────────────────────────────────────────
   if (step === "invalid") {
-    return (
-      <div className="cr-page">
-        <div className="cr-card">
-          <div className="cr-success" style={{ gap: 16 }}>
-            <div className="cr-success-ring">
-              <svg viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return shell(
+      <div className="max-w-[520px] mx-auto">
+        <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
+          <div className="flex flex-col items-center text-center gap-4 py-6">
+            <div className="relative w-[88px] h-[88px]">
+              <svg viewBox="0 0 88 88" fill="none" className="w-[88px] h-[88px]">
                 <circle cx="44" cy="44" r="40" stroke="rgba(248,113,113,0.2)" strokeWidth="3" />
-                <circle cx="44" cy="44" r="40" stroke="#f87171" strokeWidth="3" strokeLinecap="round"
-                  strokeDasharray="251" strokeDashoffset="0" />
+                <circle cx="44" cy="44" r="40" stroke="#f87171" strokeWidth="3" strokeLinecap="round" strokeDasharray="251" strokeDashoffset="0" />
               </svg>
-              <div className="cr-success-check">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </div>
             </div>
-            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: 28, fontWeight: 800, color: "var(--red)" }}>
-              Invalid Code
-            </h2>
-            <p style={{ color: "var(--text-2)", fontSize: 13, lineHeight: 1.6, maxWidth: 280, textAlign: "center" }}>
+            <h2 className="m-0 text-[26px] font-extrabold text-red-400">Invalid Code</h2>
+            <p className="m-0 text-[13px] text-slate-500 max-w-[300px]">
               {errorMessage || "The room code could not be found. Please verify the code and try again."}
             </p>
             <button
               onClick={reset}
-              style={{ background: "var(--red)", color: "#fff", border: "none", borderRadius: "var(--radius-md)", padding: "13px 48px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, cursor: "pointer", marginTop: 8 }}
+              className="px-8 py-2.5 bg-red-600 hover:bg-red-700 border-none rounded-lg text-white text-[13px] font-semibold cursor-pointer transition-colors duration-200"
             >
               Try Again
             </button>
@@ -258,160 +306,149 @@ export default function JoinRoom() {
   // ── Multi-step form ───────────────────────────────────────────────────────────
   const stepLabel = `Step ${stepNum < 10 ? `0${stepNum}` : stepNum} / ${TOTAL_STEPS < 10 ? `0${TOTAL_STEPS}` : TOTAL_STEPS}`;
 
-  return (
-    <div className="cr-page">
-      <div className="cr-card">
-        {/* Header */}
-        <div className="cr-header">
-          <span className="cr-header-title">Join Room</span>
-          <button className="cr-close-btn" onClick={() => navigate(-1)} title="Close">
-            <IconX />
-          </button>
-        </div>
-
-        {/* Progress */}
-        <div className="cr-progress-wrap">
-          <div className="cr-progress-meta">
-            <span className="cr-step-label">{stepLabel}</span>
-            <span className="cr-pct-label">{pct}% Complete</span>
-          </div>
-          <div className="cr-progress-track">
-            <div className="cr-progress-fill" style={{ width: `${pct}%` }} />
+  return shell(
+    <div className="grid gap-5 items-start lg:grid-cols-[1fr_320px]">
+      <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="m-0 text-xl font-bold text-slate-50">Join Room</h2>
+            <p className="m-0 mt-1.5 text-[13px] text-slate-500">
+              Connect to an existing workspace using the room code.
+            </p>
           </div>
         </div>
 
-        {/* Step dots */}
-        <div className="cr-step-dots">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className={`cr-dot ${i < stepNum ? "done" : i === stepNum ? "active" : "pending"}`} />
-          ))}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-[0.08em]">
+              {stepLabel}
+            </span>
+            <span className="text-[11px] font-semibold text-blue-500 tracking-[0.04em]">
+              {pct}% Complete
+            </span>
+          </div>
+          <div className="h-[3px] bg-pp-border rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
         </div>
 
-        {/* Body */}
-        <div className="cr-body">
-          {errorMessage && (
-            <div style={{ color: "#ff9ea8", fontSize: 13, marginBottom: 4 }}>{errorMessage}</div>
-          )}
+        {errorMessage && (
+          <div className="mb-4 px-4 py-3 bg-[#1f0a0a] border border-red-500 rounded-lg text-red-400 text-[13px]">
+            {errorMessage}
+          </div>
+        )}
 
-          {/* LANDING */}
-          {step === "landing" && (
-            <div className="cr-step" key="landing">
-              <div>
-                <h2 className="cr-step-title">Find Your Group</h2>
-                <p className="cr-step-desc">
-                  Enter the unique room code to connect with developers and designers building something great.
-                </p>
-              </div>
-              <div className="cr-field">
-                <label className="cr-label">Room Code</label>
-                <input
-                  className="cr-input"
-                  type="text"
-                  maxLength={6}
-                  placeholder="e.g. ABC123"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && void submit()}
-                  autoFocus
-                  style={{ letterSpacing: "0.25em", fontFamily: "monospace", fontSize: 16 }}
-                />
-              </div>
+        {step === "landing" && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h3 className="m-0 text-[18px] font-semibold text-slate-100">Find Your Group</h3>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">
+                Enter the 6-character room code provided by the owner.
+              </p>
             </div>
-          )}
+            <div>
+              <label className="block text-[12px] text-slate-400 mb-2 font-medium">Room Code</label>
+              <input
+                className="w-full px-4 py-[11px] bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors duration-200 placeholder:text-slate-600 tracking-[0.3em] font-mono"
+                type="text"
+                maxLength={6}
+                placeholder="ABC123"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && void submit()}
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
 
-          {/* ROLE */}
-          {step === "role" && (
-            <div className="cr-step" key="role">
-              <div>
-                <h2 className="cr-step-title">Choose Your Role</h2>
-                <p className="cr-step-desc">Select one primary and one backup role for the room.</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {roomRoles.map((r) => (
-                  <div
-                    key={r.id}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      background: roleType[r.id] ? "rgba(34,211,238,0.05)" : "var(--surface-2)",
-                      border: roleType[r.id] ? "1px solid rgba(34,211,238,0.3)" : "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)", padding: "12px 14px", transition: "all 0.18s",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(34,211,238,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--cyan)", flexShrink: 0 }}>
-                        {r.icon}
-                      </div>
-                      <div>
-                        <div style={{ color: "var(--text-1)", fontSize: 13, fontWeight: 600 }}>{r.name}</div>
-                        <div style={{ color: "var(--text-3)", fontSize: 11, marginTop: 2 }}>{r.sub}</div>
-                      </div>
+        {step === "role" && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h3 className="m-0 text-[18px] font-semibold text-slate-100">Choose Your Role</h3>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">Select one primary and one backup role.</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              {roomRoles.map((r) => (
+                <div
+                  key={r.id}
+                  className={`flex items-center justify-between border rounded-xl p-4 transition-colors ${
+                    roleType[r.id]
+                      ? "border-blue-500/50 bg-blue-500/5"
+                      : "border-pp-border bg-pp-elevated"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                      {r.icon}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {ROLE_TYPES.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => assignRole(r.id, type)}
-                          style={{
-                            padding: "5px 11px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-                            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                            background: roleType[r.id] === type ? (type === "primary" ? "var(--cyan)" : "#818cf8") : "var(--surface-3)",
-                            color: roleType[r.id] === type ? (type === "primary" ? "#0a1628" : "#fff") : "var(--text-3)",
-                            border: roleType[r.id] === type ? "none" : "1px solid var(--border)",
-                          }}
-                        >
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </button>
-                      ))}
+                    <div>
+                      <div className="text-[13px] font-semibold text-slate-100">{r.name}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{r.sub}</div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex gap-2">
+                    {ROLE_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => assignRole(r.id, type)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                          roleType[r.id] === type
+                            ? type === "primary"
+                              ? "bg-blue-500 text-white"
+                              : "bg-indigo-500 text-white"
+                            : "bg-pp-border text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* HOURS */}
-          {step === "hours" && (
-            <div className="cr-step" key="hours">
-              <div>
-                <h2 className="cr-step-title">Peak Kinetic Window</h2>
-                <p className="cr-step-desc">Select up to 2 time slots to sync your collaboration sessions.</p>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {times.map((t) => {
-                  const active = selectedTimes.includes(t.id);
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => toggleTime(t.id)}
-                      style={{
-                        borderRadius: "var(--radius-md)", padding: "16px 14px", cursor: "pointer",
-                        transition: "all 0.18s",
-                        border: active ? "1px solid rgba(34,211,238,0.3)" : "1px solid var(--border)",
-                        background: active ? "rgba(34,211,238,0.05)" : "var(--surface-2)",
-                      }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--cyan)", letterSpacing: "0.08em", marginBottom: 10, textTransform: "uppercase" as const }}>
-                        {t.short}
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? "var(--cyan)" : "var(--text-1)", marginBottom: 3 }}>
-                        {t.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-3)" }}>{t.range}</div>
+        {step === "hours" && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h3 className="m-0 text-[18px] font-semibold text-slate-100">Peak Kinetic Window</h3>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">Pick up to 2 time slots for matching.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {times.map((t) => {
+                const active = selectedTimes.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleTime(t.id)}
+                    className={`text-left border rounded-xl px-4 py-3 transition-colors ${
+                      active
+                        ? "border-blue-500/50 bg-blue-500/5"
+                        : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
+                    }`}
+                  >
+                    <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">
+                      {t.short}
                     </div>
-                  );
-                })}
-              </div>
+                    <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>
+                      {t.name}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{t.range}</div>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="cr-footer">
-          <button className="cr-back-btn" onClick={handleBack}>
-            <IconChevronLeft /> Back
-          </button>
+        <div className="flex items-center justify-between border-t border-pp-border mt-7 pt-5">
           <button
-            className="cr-next-btn"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 border-none rounded-lg text-white text-[13px] font-semibold cursor-pointer transition-colors duration-200"
             onClick={() => {
               if (step === "landing") void submit();
               else if (step === "role" && canProceedRole) go("hours");
@@ -429,12 +466,47 @@ export default function JoinRoom() {
                 (step === "landing" && code.trim().length !== 6) ||
                 (step === "role" && !canProceedRole) ||
                 (step === "hours" && selectedTimes.length === 0)
-                  ? 0.45
+                  ? 0.5
                   : 1,
             }}
           >
             {submitting ? "Please wait..." : step === "hours" ? "Join Room" : "Next"}
             {!submitting && <IconChevronRight />}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="bg-pp-card border border-pp-border rounded-2xl p-6">
+          <h3 className="m-0 text-[16px] font-semibold text-slate-100">Join Guide</h3>
+          <p className="m-0 mt-2 text-[13px] text-slate-500">
+            Follow the steps to be matched with a compatible team.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 text-[12px] text-slate-500">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-pp-border flex items-center justify-center text-[11px] text-slate-400">1</span>
+              Enter the 6-character room code.
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-pp-border flex items-center justify-center text-[11px] text-slate-400">2</span>
+              Choose primary and backup roles.
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-pp-border flex items-center justify-center text-[11px] text-slate-400">3</span>
+              Pick up to two time slots.
+            </div>
+          </div>
+        </div>
+        <div className="bg-pp-elevated border border-pp-border rounded-2xl p-6">
+          <h3 className="m-0 text-[16px] font-semibold text-slate-100">Need Help?</h3>
+          <p className="m-0 mt-2 text-[13px] text-slate-500">
+            Ask the room owner for the correct code, or return to your rooms list.
+          </p>
+          <button
+            onClick={() => navigate("/my-rooms")}
+            className="mt-4 w-full py-2.5 bg-pp-border hover:bg-blue-600 text-slate-300 hover:text-white border-none rounded-lg text-[13px] font-semibold cursor-pointer transition-colors duration-200"
+          >
+            Go to My Rooms
           </button>
         </div>
       </div>

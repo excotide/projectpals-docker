@@ -9,6 +9,7 @@ import {
   type RoomMemberItem,
 } from "../hooks/useRooms";
 import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,16 +51,12 @@ const STANDARD_WINDOWS = ["morning", "afternoon", "evening", "flexible"];
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-const IconBell    = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
-const IconHelp    = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconInfo    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 const IconSearch  = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconUser    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>;
 const IconEdit    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
-const IconChevron = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>;
+const IconDoor    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>;
 const IconX       = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-const IconDoor    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RoleBadge({ role, allRoles }: { role: string; allRoles: string[] }) {
@@ -78,29 +75,29 @@ function MemberRow({ member, allRoles }: { member: RoomMemberItem; allRoles: str
   const name  = member.user?.name ?? "Unknown";
   const color = getAvatarColor(name);
   return (
-    <div className="flex items-center gap-3.5 px-5 py-3.5 border-b border-[#1e2530] last:border-b-0">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-pp-elevated border border-pp-border hover:border-blue-500/30 transition-all">
       <div
-        className="w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-bold text-[#c0cad8] shrink-0 border border-[#2a3340]"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-[#c0cad8] shrink-0 border border-[#2a3340]"
         style={{ background: color }}
       >
         {getInitials(name)}
       </div>
       <div>
-        <p className="text-sm font-semibold text-slate-200 mb-1.5">{name}</p>
+        <p className="text-sm font-semibold text-slate-200 mb-1">{name}</p>
         <div className="flex items-center gap-2 flex-wrap">
           {member.primary_role && (
             <RoleBadge role={member.primary_role} allRoles={allRoles} />
           )}
           {member.backup_role && (
             <>
-              <span className="text-[#3d4451] text-xs">·</span>
-              <span className="text-xs text-[#8892a4] border border-[#3d4451] px-2.5 py-0.5 rounded-md">
+              <span className="text-slate-700 text-[10px]">·</span>
+              <span className="text-[11px] text-slate-500 border border-pp-border px-2 py-0.5 rounded-full">
                 {member.backup_role}
               </span>
             </>
           )}
           {member.user?.username && (
-            <span className="text-[11px] text-[#4a5568]">{member.user.username}</span>
+            <span className="text-[11px] text-slate-600">{member.user.username}</span>
           )}
         </div>
       </div>
@@ -192,7 +189,7 @@ function EditProfileModal({
               <p className="text-[11px] font-semibold text-[#4a5568] uppercase tracking-widest">
                 Primary Role
               </p>
-              <span className="text-[10px] text-red-400 font-semibold">Wajib pilih 1</span>
+              <span className="text-[10px] text-red-400 font-semibold">Pick 1 required</span>
             </div>
             <div className="space-y-2">
               {roomRoles.map(role => {
@@ -234,11 +231,11 @@ function EditProfileModal({
                   Backup Roles
                 </p>
                 <span className="text-[10px] text-red-400 font-semibold">
-                  Wajib pilih semua
+                  Select all required
                 </span>
               </div>
               <p className="text-[11px] text-[#4a5568] mb-3">
-                Pilih semua role yang bisa kamu kerjakan sebagai backup.
+                Select all roles you can handle as backups.
               </p>
               <div className="space-y-2">
                 {remainingRoles.map(role => {
@@ -270,7 +267,7 @@ function EditProfileModal({
               </div>
               {backupRequired && backups.length === 0 && (
                 <p className="text-[11px] text-red-400 mt-2">
-                  Pilih minimal satu backup role.
+                  Select at least one backup role.
                 </p>
               )}
             </div>
@@ -282,7 +279,7 @@ function EditProfileModal({
               <p className="text-[11px] font-semibold text-[#4a5568] uppercase tracking-widest">
                 Productivity Windows
               </p>
-              <span className="text-[10px] text-red-400 font-semibold">Wajib pilih 1+</span>
+              <span className="text-[10px] text-red-400 font-semibold">Pick 1+ required</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {windowOptions.map(w => {
@@ -415,13 +412,13 @@ export default function DetailMemberRoom() {
       await membersQuery.refetch();
       setShowEdit(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Gagal menyimpan profil.");
+      setSaveError(err instanceof Error ? err.message : "Failed to save profile.");
     }
   };
 
   const handleLeaveRoom = async () => {
     if (!roomCode || leaveMutation.isPending) return;
-    if (!window.confirm("Yakin ingin keluar dari room ini?")) return;
+    if (!window.confirm("Are you sure you want to leave this room?")) return;
     try {
       await leaveMutation.mutateAsync({ roomCode });
       navigate("/my-rooms", { replace: true });
@@ -435,7 +432,7 @@ export default function DetailMemberRoom() {
 
   return (
     <>
-      <div className="flex h-screen bg-[#0d1117] text-white overflow-hidden font-sans">
+      <div className="flex h-screen bg-pp-bg text-white overflow-hidden font-sans">
 
         <Sidebar
           activeNav={activeNav}
@@ -446,50 +443,26 @@ export default function DetailMemberRoom() {
 
         <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* ── Topbar ──────────────────────────────────────────────────────── */}
-          <header className="h-14 shrink-0 bg-[#0d1117] border-b border-[#1e2530] flex items-center justify-between px-7">
-            <div className="flex items-center gap-2 text-sm text-[#8892a4]">
-              <span>Room</span>
-              <IconChevron />
-              <span className="text-slate-200 font-semibold">
-                {room?.project_theme ?? roomCode}
-              </span>
-              {room?.room_code && (
-                <>
-                  <IconChevron />
-                  <span className="font-mono text-xs text-[#4a5568] tracking-widest">
-                    {room.room_code}
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <button className="p-1 rounded-md text-[#8892a4] hover:text-slate-300 transition-colors border-none bg-transparent cursor-pointer">
-                <IconBell />
-              </button>
-              <button className="p-1 rounded-md text-[#8892a4] hover:text-slate-300 transition-colors border-none bg-transparent cursor-pointer">
-                <IconHelp />
-              </button>
-              <div
-                className="w-[34px] h-[34px] rounded-full border-2 border-[#2a3340] flex items-center justify-center text-xs font-bold text-[#c0cad8] cursor-pointer"
-                style={{ background: getAvatarColor(user?.name ?? "U") }}
-              >
-                {initials}
-              </div>
-            </div>
-          </header>
+          <Topbar
+            initials={initials}
+            breadcrumbs={[
+              { label: "My Rooms", to: "/my-rooms" },
+              { label: room?.project_theme ?? roomCode ?? "Room" },
+              { label: room?.room_code ?? "", mono: true, muted: true },
+            ]}
+          />
 
           {/* ── Content ─────────────────────────────────────────────────────── */}
-          <main className="flex-1 overflow-auto p-7 flex flex-col gap-5">
+          <main className="flex-1 overflow-y-auto p-6 space-y-5">
 
             {isLoading && (
-              <div className="bg-[#161b23] border border-[#1e2530] rounded-xl px-6 py-12 text-center text-[#4a5568] text-sm">
-                Loading room...
+              <div className="bg-pp-card border border-pp-border rounded-2xl px-6 py-12 text-center text-slate-500 text-sm">
+                Loading room data...
               </div>
             )}
 
             {!isLoading && queryErr && (
-              <div className="bg-[#161b23] border border-red-500/50 rounded-xl px-6 py-8 text-center text-red-400 text-sm">
+              <div className="bg-pp-card border border-red-500 rounded-2xl px-6 py-8 text-center text-red-400 text-sm">
                 {queryErr}
               </div>
             )}
@@ -497,65 +470,68 @@ export default function DetailMemberRoom() {
             {!isLoading && !queryErr && room && (
               <>
                 {/* ── Room Information ──────────────────────────────────────── */}
-                <div className="bg-[#161b23] border border-[#1e2530] rounded-xl">
-                  <div className="p-6">
-                    <div className="flex items-center gap-2.5 pb-4 border-b border-[#1e2530] mb-5">
-                      <IconInfo />
-                      <h2 className="text-lg font-bold text-slate-200">Room Information</h2>
-                    </div>
-                    <div className="grid grid-cols-3 gap-x-4 gap-y-5">
-                      <InfoBlock label="Roles">
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {allRoles.length === 0
-                            ? <span className="text-sm text-[#4a5568]">—</span>
-                            : allRoles.map(r => (
-                              <RoleBadge key={r} role={r} allRoles={allRoles} />
-                            ))
-                          }
-                        </div>
-                      </InfoBlock>
-                      <InfoBlock label="Max Member per Group">
-                        <p className="text-sm text-[#c0cad8] mt-1">{room.max_per_group} Anggota</p>
-                      </InfoBlock>
-                      <InfoBlock label="Number of Groups">
-                        <p className="text-sm text-[#c0cad8] mt-1">{room.number_of_groups} Kelompok</p>
-                      </InfoBlock>
-                      <InfoBlock label="Productivity Windows">
-                        <p className="text-sm text-[#c0cad8] mt-1">
-                          {(room.productivity_windows as string[] | undefined)?.map(capitalize).join(", ") || "—"}
-                        </p>
-                      </InfoBlock>
-                      <InfoBlock label="Environment">
-                        <p className="text-sm text-[#c0cad8] mt-1">
-                          {(room.environments as string[] | undefined)?.map(capitalize).join(", ") || "—"}
-                        </p>
-                      </InfoBlock>
-                      <InfoBlock label="Status">
-                        <p className="text-sm text-[#c0cad8] mt-1 capitalize">{room.status}</p>
-                      </InfoBlock>
+                <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
+                  <div className="flex items-center gap-2.5 mb-6">
+                    <span className="text-blue-400"><IconInfo /></span>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">
+                        {room.project_theme}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 font-mono tracking-wider mt-0.5">
+                        {room.room_code}
+                      </p>
                     </div>
                   </div>
-                </div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <InfoBlock label="Roles">
+                      <div className="flex flex-wrap gap-1.5">
+                        {allRoles.length === 0
+                          ? <span className="text-sm text-slate-500">—</span>
+                          : allRoles.map(r => (
+                            <RoleBadge key={r} role={r} allRoles={allRoles} />
+                          ))
+                        }
+                      </div>
+                    </InfoBlock>
+                    <InfoBlock label="Max Members per Group">
+                      <p className="text-sm text-slate-200">{room.max_per_group} members</p>
+                    </InfoBlock>
+                    <InfoBlock label="Number of Groups">
+                      <p className="text-sm text-slate-200">{room.number_of_groups} groups</p>
+                    </InfoBlock>
+                    <InfoBlock label="Productivity Windows">
+                      <p className="text-sm text-slate-200">
+                        {(room.productivity_windows as string[] | undefined)?.map(capitalize).join(", ") || "—"}
+                      </p>
+                    </InfoBlock>
+                    <InfoBlock label="Environments">
+                      <p className="text-sm text-slate-200">
+                        {(room.environments as string[] | undefined)?.map(capitalize).join(", ") || "—"}
+                      </p>
+                    </InfoBlock>
+                    <InfoBlock label="Status">
+                      <p className="text-sm text-slate-200 capitalize">{room.status}</p>
+                    </InfoBlock>
+                  </div>
+                </section>
 
                 {/* ── Bottom row ────────────────────────────────────────────── */}
-                <div className="grid grid-cols-[1fr_300px] gap-4">
+                <div className="flex gap-5">
 
                   {/* Members list */}
-                  <div className="bg-[#161b23] border border-[#1e2530] rounded-xl overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-[18px] border-b border-[#1e2530]">
+                  <section className="flex-1 bg-pp-card border border-pp-border rounded-2xl p-5">
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-slate-200">Anggota di Ruang Ini</h3>
-                        <span className="text-xs text-[#4a5568] bg-white/5 px-2 py-0.5 rounded-full">
+                        <h3 className="text-base font-semibold text-white">Members in This Room</h3>
+                        <span className="text-xs text-slate-500 bg-pp-elevated px-2 py-0.5 rounded-full">
                           {filteredMembers.length}
                         </span>
                       </div>
                       <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600">
-                          <IconSearch />
-                        </span>
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600"><IconSearch /></span>
                         <input
                           type="text"
-                          placeholder="Cari anggota..."
+                          placeholder="Search members..."
                           value={searchQuery}
                           onChange={e => setSearchQuery(e.target.value)}
                           className="pl-8 pr-3 py-1.5 rounded-lg bg-pp-elevated border border-pp-border text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 w-40 transition-all"
@@ -564,27 +540,29 @@ export default function DetailMemberRoom() {
                     </div>
 
                     {membersQuery.isLoading && (
-                      <p className="py-8 text-center text-[#4a5568] text-sm">Memuat anggota...</p>
+                      <p className="text-center text-slate-600 text-sm py-8">Loading members...</p>
                     )}
 
                     <div>
                       {!membersQuery.isLoading && filteredMembers.length === 0 ? (
-                        <p className="py-8 text-center text-[#4a5568] text-sm">
-                          {searchQuery ? "Tidak ada anggota ditemukan." : "Belum ada anggota."}
+                        <p className="text-center text-slate-600 text-sm py-8">
+                          {searchQuery ? "No members found." : "No members in this room yet."}
                         </p>
                       ) : (
-                        filteredMembers.map(m => (
-                          <MemberRow key={m.id} member={m} allRoles={allRoles} />
-                        ))
+                        <div className="space-y-2">
+                          {filteredMembers.map(m => (
+                            <MemberRow key={m.id} member={m} allRoles={allRoles} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  </section>
 
                   {/* Your Profile in Room */}
-                  <div className="bg-[#161b23] border border-[#1e2530] rounded-xl p-5 flex flex-col">
-                    <div className="flex items-center gap-2 pb-4 border-b border-[#1e2530] mb-4">
+                  <aside className="w-72 shrink-0 bg-pp-card border border-pp-border rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-center gap-2 pb-4 border-b border-pp-border mb-4">
                       <IconUser />
-                      <h3 className="text-sm font-bold text-slate-200">Your Profile in Room</h3>
+                      <h3 className="text-sm font-bold text-white">Your Profile in Room</h3>
                     </div>
 
                     {/* Primary Role */}
@@ -593,10 +571,10 @@ export default function DetailMemberRoom() {
                         {myRecord?.primary_role ? (
                           <>
                             <span className="w-2 h-2 rounded-full bg-[#00e5ff] shrink-0" />
-                            <span className="text-sm text-[#c0cad8]">{myRecord.primary_role}</span>
+                            <span className="text-sm text-slate-200">{myRecord.primary_role}</span>
                           </>
                         ) : (
-                          <span className="text-sm text-[#4a5568] italic">Not set</span>
+                          <span className="text-sm text-slate-500 italic">Not set</span>
                         )}
                       </div>
                     </InfoBlock>
@@ -607,7 +585,7 @@ export default function DetailMemberRoom() {
                         <InfoBlock label="Backup Role">
                           <div className="flex items-center gap-2 mt-1">
                             <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                            <span className="text-sm text-[#c0cad8]">{myRecord.backup_role}</span>
+                            <span className="text-sm text-slate-200">{myRecord.backup_role}</span>
                           </div>
                         </InfoBlock>
                       </div>
@@ -616,10 +594,10 @@ export default function DetailMemberRoom() {
                     {/* Productivity Windows */}
                     <div className="mt-4">
                       <InfoBlock label="Productivity Windows">
-                        <p className="text-sm text-[#c0cad8] mt-1">
+                        <p className="text-sm text-slate-200 mt-1">
                           {(myRecord?.productivity_windows ?? []).length > 0
                             ? (myRecord?.productivity_windows ?? []).map(capitalize).join(", ")
-                            : <span className="text-[#4a5568] italic">Not set</span>
+                            : <span className="text-slate-500 italic">Not set</span>
                           }
                         </p>
                       </InfoBlock>
@@ -628,7 +606,7 @@ export default function DetailMemberRoom() {
                     {/* Edit button */}
                     <button
                       onClick={() => { setSaveError(""); setShowEdit(true); }}
-                      className="mt-5 w-full flex items-center justify-center gap-1.5 bg-[#1e2530] border border-[#2a3340] text-[#8892a4] hover:text-slate-300 hover:bg-[#252e3d] transition-colors text-xs font-semibold py-2.5 rounded-lg cursor-pointer"
+                      className="mt-5 w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors text-xs font-semibold py-2.5 rounded-lg cursor-pointer"
                     >
                       <IconEdit />
                       Edit Role &amp; Work Time
@@ -638,12 +616,12 @@ export default function DetailMemberRoom() {
                     <button
                       onClick={handleLeaveRoom}
                       disabled={leaveMutation.isPending}
-                      className="mt-2 w-full flex items-center justify-center gap-1.5 bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition-colors text-xs font-semibold py-2.5 rounded-lg cursor-pointer disabled:opacity-40"
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 bg-transparent border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition-colors text-xs font-semibold py-2.5 rounded-lg cursor-pointer disabled:opacity-40"
                     >
                       <IconDoor />
                       {leaveMutation.isPending ? "Leaving..." : "Leave Room"}
                     </button>
-                  </div>
+                  </aside>
                 </div>
               </>
             )}
@@ -678,7 +656,7 @@ export default function DetailMemberRoom() {
 function InfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold text-[#4a5568] uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">{label}</p>
       {children}
     </div>
   );
