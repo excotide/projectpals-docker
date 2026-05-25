@@ -47,8 +47,9 @@ class TeamTargetController extends Controller
         }
 
         $data = $request->validate([
-            'role'  => ['required', 'string', 'max:100'],
-            'title' => ['required', 'string', 'max:255'],
+            'role'     => ['required', 'string', 'max:100'],
+            'title'    => ['required', 'string', 'max:255'],
+            'deadline' => ['nullable', 'date'],
         ]);
 
         $room = $team->room;
@@ -69,6 +70,7 @@ class TeamTargetController extends Controller
             'team_id'    => $team->id,
             'role'       => $data['role'],
             'title'      => $data['title'],
+            'deadline'   => $data['deadline'] ?? null,
             'sort_order' => $maxOrder + 1,
         ]);
 
@@ -95,10 +97,26 @@ class TeamTargetController extends Controller
         }
 
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title'    => ['sometimes', 'string', 'max:255'],
+            'deadline' => ['sometimes', 'nullable', 'date'],
         ]);
 
-        $target->update(['title' => $data['title']]);
+        if (! \array_key_exists('title', $data) && ! \array_key_exists('deadline', $data)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No fields to update.',
+            ], 422);
+        }
+
+        $payload = [];
+        if (\array_key_exists('title', $data)) {
+            $payload['title'] = $data['title'];
+        }
+        if (\array_key_exists('deadline', $data)) {
+            $payload['deadline'] = $data['deadline'];
+        }
+
+        $target->update($payload);
 
         return response()->json([
             'success' => true,
@@ -154,7 +172,11 @@ class TeamTargetController extends Controller
             ], 403);
         }
 
-        $target->update(['is_done' => ! $target->is_done]);
+        $newIsDone = ! $target->is_done;
+        $target->update([
+            'is_done'      => $newIsDone,
+            'completed_at' => $newIsDone ? now() : null,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -165,12 +187,14 @@ class TeamTargetController extends Controller
     private function format(TeamRoleTarget $t): array
     {
         return [
-            'id'         => $t->id,
-            'team_id'    => $t->team_id,
-            'role'       => $t->role,
-            'title'      => $t->title,
-            'is_done'    => (bool) $t->is_done,
-            'sort_order' => (int) $t->sort_order,
+            'id'           => $t->id,
+            'team_id'      => $t->team_id,
+            'role'         => $t->role,
+            'title'        => $t->title,
+            'is_done'      => (bool) $t->is_done,
+            'sort_order'   => (int) $t->sort_order,
+            'deadline'     => $t->deadline?->toIso8601String(),
+            'completed_at' => $t->completed_at?->toIso8601String(),
         ];
     }
 }

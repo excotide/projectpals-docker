@@ -105,6 +105,10 @@ export interface RoomTeamMember {
 export interface RoomTeam {
   id: number | string
   team_number: number
+  project_name: string | null
+  description: string | null
+  deadline: string | null
+  finished_at: string | null
   members: RoomTeamMember[]
 }
 
@@ -175,6 +179,8 @@ export interface TeamRoleTarget {
   title: string
   is_done: boolean
   sort_order: number
+  deadline: string | null
+  completed_at: string | null
 }
 
 export interface TeamTargetsResponse {
@@ -186,12 +192,27 @@ export interface CreateTeamTargetPayload {
   teamId: number | string
   role: string
   title: string
+  deadline?: string | null
 }
 
 export interface UpdateTeamTargetPayload {
   teamId: number | string
   targetId: number | string
-  title: string
+  title?: string
+  deadline?: string | null
+}
+
+export interface UpdateTeamPayload {
+  teamId: number | string
+  projectName?: string | null
+  description?: string | null
+  deadline?: string | null
+  roomCode?: string
+}
+
+export interface FinishTeamPayload {
+  teamId: number | string
+  roomCode?: string
 }
 
 export interface DeleteTeamTargetPayload {
@@ -522,8 +543,10 @@ export function useCreateTeamTarget() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ teamId, role, title }: CreateTeamTargetPayload) => {
-      const response = await apiPost<TeamRoleTarget>(`/teams/${teamId}/targets`, { role, title })
+    mutationFn: async ({ teamId, role, title, deadline }: CreateTeamTargetPayload) => {
+      const body: Record<string, unknown> = { role, title }
+      if (deadline !== undefined) body.deadline = deadline
+      const response = await apiPost<TeamRoleTarget>(`/teams/${teamId}/targets`, body)
       return response.data
     },
     onSuccess: async (_data, { teamId }) => {
@@ -536,12 +559,63 @@ export function useUpdateTeamTarget() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ teamId, targetId, title }: UpdateTeamTargetPayload) => {
-      const response = await apiPatch<TeamRoleTarget>(`/teams/${teamId}/targets/${targetId}`, { title })
+    mutationFn: async ({ teamId, targetId, title, deadline }: UpdateTeamTargetPayload) => {
+      const body: Record<string, unknown> = {}
+      if (title !== undefined) body.title = title
+      if (deadline !== undefined) body.deadline = deadline
+      const response = await apiPatch<TeamRoleTarget>(`/teams/${teamId}/targets/${targetId}`, body)
       return response.data
     },
     onSuccess: async (_data, { teamId }) => {
       await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
+    },
+  })
+}
+
+export function useUpdateTeam() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, projectName, description, deadline }: UpdateTeamPayload) => {
+      const body: Record<string, unknown> = {}
+      if (projectName !== undefined) body.project_name = projectName
+      if (description !== undefined) body.description = description
+      if (deadline !== undefined) body.deadline = deadline
+      const response = await apiPatch<{
+        id: number | string
+        project_name: string | null
+        description: string | null
+        deadline: string | null
+        finished_at: string | null
+      }>(`/teams/${teamId}`, body)
+      return response.data
+    },
+    onSuccess: async (_data, { roomCode }) => {
+      if (roomCode) {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) })
+      } else {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.all })
+      }
+    },
+  })
+}
+
+export function useFinishTeam() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId }: FinishTeamPayload) => {
+      const response = await apiPost<{ id: number | string; finished_at: string | null; deadline: string | null }>(
+        `/teams/${teamId}/finish`,
+      )
+      return response.data
+    },
+    onSuccess: async (_data, { roomCode }) => {
+      if (roomCode) {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) })
+      } else {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.all })
+      }
     },
   })
 }

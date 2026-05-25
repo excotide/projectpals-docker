@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/rooms/{roomCode}/match', [MatchingController::class, 'match']);
     Route::get('/rooms/{roomCode}/teams', [MatchingController::class, 'teams']);
     Route::post('/teams/{team}/transfer-leader', [MatchingController::class, 'transferLeader']);
+    Route::patch('/teams/{team}', [MatchingController::class, 'updateTeam']);
+    Route::post('/teams/{team}/finish', [MatchingController::class, 'finishTeam']);
     Route::patch('/teams/{team}/members/{member}/role', [MatchingController::class, 'changeMemberRole']);
     Route::get('/teams/{team}/targets', [TeamTargetController::class, 'index']);
     Route::post('/teams/{team}/targets', [TeamTargetController::class, 'store']);

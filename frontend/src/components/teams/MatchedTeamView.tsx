@@ -4,14 +4,33 @@ import {
   useChangeMemberRole,
   useCreateTeamTarget,
   useDeleteTeamTarget,
+  useFinishTeam,
   useTeamTargets,
   useToggleTeamTarget,
   useTransferLeader,
+  useUpdateTeam,
   useUpdateTeamTarget,
   type RoomTeam,
 } from "../../hooks/useRooms";
-import { getAvatarColor, getInitials } from "../../utils/teamHelpers";
+import {
+  computeProjectStatus,
+  computeTargetStatus,
+  formatDateTime,
+  formatDateTimeShort,
+  getAvatarColor,
+  getInitials,
+  isoToLocalInput,
+  localInputToIso,
+  type ProjectStatusVariant,
+} from "../../utils/teamHelpers";
 import { IconCrown, IconPencil, IconPlus, IconTrash } from "../icons/TeamIcons";
+
+const PROJECT_STATUS_PILL: Record<ProjectStatusVariant, string> = {
+  running:  "border-blue-500 text-blue-400 bg-blue-500/10",
+  late:     "border-orange-500 text-orange-400 bg-orange-500/10",
+  done:     "border-emerald-500 text-emerald-400 bg-emerald-500/10",
+  doneLate: "border-amber-500 text-amber-400 bg-amber-500/10",
+};
 
 export interface MatchedTeamViewProps {
   team: RoomTeam;
@@ -30,11 +49,16 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
 
   const transferLeader  = useTransferLeader();
   const changeMemberRole = useChangeMemberRole();
+  const updateTeam      = useUpdateTeam();
+  const finishTeam      = useFinishTeam();
   const createTarget    = useCreateTeamTarget();
   const updateTarget    = useUpdateTeamTarget();
   const deleteTarget    = useDeleteTeamTarget();
   const toggleTarget    = useToggleTeamTarget();
   const targetsQuery    = useTeamTargets(team.id, { enabled: Boolean(team.id) });
+
+  const projectStatus = computeProjectStatus(team.deadline, team.finished_at);
+  const isFinished = team.finished_at != null;
 
   const teamMembers = team.members;
 
@@ -77,9 +101,18 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   const [changeRoleValue, setChangeRoleValue] = useState("");
   const [changeRoleErr, setChangeRoleErr] = useState("");
   const [newTargetByRole, setNewTargetByRole] = useState<Record<string, string>>({});
+  const [newTargetDeadlineByRole, setNewTargetDeadlineByRole] = useState<Record<string, string>>({});
   const [editingTargetId, setEditingTargetId] = useState<number | string | null>(null);
   const [editingTargetTitle, setEditingTargetTitle] = useState("");
+  const [editingTargetDeadline, setEditingTargetDeadline] = useState("");
   const [targetErr, setTargetErr] = useState("");
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const [editProjectName, setEditProjectName] = useState("");
+  const [editProjectDescription, setEditProjectDescription] = useState("");
+  const [editProjectDeadline, setEditProjectDeadline] = useState("");
+  const [editProjectErr, setEditProjectErr] = useState("");
+  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
+  const [finishErr, setFinishErr] = useState("");
 
   useEffect(() => {
     if (activeMemberMenuId == null) return;
@@ -138,12 +171,22 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
     if (!title) return;
     setTargetErr("");
     try {
-      await createTarget.mutateAsync({ teamId: team.id, role, title });
+      const deadlineRaw = (newTargetDeadlineByRole[role] ?? "").trim();
+      const deadline = deadlineRaw ? localInputToIso(deadlineRaw) : null;
+      await createTarget.mutateAsync({ teamId: team.id, role, title, deadline });
       setNewTargetByRole((prev) => ({ ...prev, [role]: "" }));
+      setNewTargetDeadlineByRole((prev) => ({ ...prev, [role]: "" }));
     } catch (err) {
       const anyErr = err as { payload?: { message?: string } };
       setTargetErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to add target."));
     }
+  };
+
+  const openEditTarget = (targetId: number | string, title: string, deadline: string | null) => {
+    setTargetErr("");
+    setEditingTargetId(targetId);
+    setEditingTargetTitle(title);
+    setEditingTargetDeadline(isoToLocalInput(deadline));
   };
 
   const handleSaveEditTarget = async () => {
@@ -152,12 +195,50 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
     if (!title) return;
     setTargetErr("");
     try {
-      await updateTarget.mutateAsync({ teamId: team.id, targetId: editingTargetId, title });
+      const deadline = editingTargetDeadline ? localInputToIso(editingTargetDeadline) : null;
+      await updateTarget.mutateAsync({ teamId: team.id, targetId: editingTargetId, title, deadline });
       setEditingTargetId(null);
       setEditingTargetTitle("");
+      setEditingTargetDeadline("");
     } catch (err) {
       const anyErr = err as { payload?: { message?: string } };
       setTargetErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to update target."));
+    }
+  };
+
+  const openEditProject = () => {
+    setEditProjectErr("");
+    setEditProjectName(team.project_name ?? "");
+    setEditProjectDescription(team.description ?? "");
+    setEditProjectDeadline(isoToLocalInput(team.deadline));
+    setEditProjectOpen(true);
+  };
+
+  const handleSaveProject = async () => {
+    setEditProjectErr("");
+    try {
+      await updateTeam.mutateAsync({
+        teamId: team.id,
+        projectName: editProjectName.trim() || null,
+        description: editProjectDescription.trim() || null,
+        deadline: editProjectDeadline ? localInputToIso(editProjectDeadline) : null,
+        roomCode,
+      });
+      setEditProjectOpen(false);
+    } catch (err) {
+      const anyErr = err as { payload?: { message?: string } };
+      setEditProjectErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to save project."));
+    }
+  };
+
+  const handleConfirmFinish = async () => {
+    setFinishErr("");
+    try {
+      await finishTeam.mutateAsync({ teamId: team.id, roomCode });
+      setFinishConfirmOpen(false);
+    } catch (err) {
+      const anyErr = err as { payload?: { message?: string } };
+      setFinishErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to finish project."));
     }
   };
 
@@ -186,14 +267,42 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
     <div className="flex gap-6">
       <div className="flex-1 space-y-6">
         <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Team Information</h2>
-              <p className="text-[11px] text-slate-500 mt-1">Room: {roomInfo.project_theme ?? "-"}</p>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Team Information · Room: {roomInfo.project_theme ?? "-"}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <h2 className="text-xl font-semibold text-white truncate">
+                  {team.project_name ?? <span className="text-slate-500 italic font-normal">Belum ada nama proyek</span>}
+                </h2>
+                <span className={`border text-[11px] px-2.5 py-0.5 rounded-full font-medium ${PROJECT_STATUS_PILL[projectStatus.variant]}`}>
+                  {projectStatus.label}
+                </span>
+              </div>
+              <p className="text-sm text-slate-400 mt-2 whitespace-pre-wrap">
+                {team.description ?? <span className="text-slate-600 italic">Belum ada deskripsi.</span>}
+              </p>
             </div>
-            <span className="border border-emerald-500 text-emerald-400 text-[11px] px-2.5 py-0.5 rounded-full font-medium">
-              Team {team.team_number}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="border border-emerald-500 text-emerald-400 text-[11px] px-2.5 py-0.5 rounded-full font-medium">
+                Team {team.team_number}
+              </span>
+              {currentUserIsLeader && (
+                <button
+                  onClick={openEditProject}
+                  className="px-3 py-1 rounded-md border border-pp-border text-slate-300 hover:bg-white/5 text-[11px] font-semibold cursor-pointer transition-colors"
+                >
+                  Edit Proyek
+                </button>
+              )}
+              {currentUserIsLeader && !isFinished && (
+                <button
+                  onClick={() => { setFinishErr(""); setFinishConfirmOpen(true); }}
+                  className="px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold cursor-pointer transition-colors"
+                >
+                  Tandai Selesai
+                </button>
+              )}
+            </div>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-4">
             <div>
@@ -201,8 +310,8 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               <p className="text-sm text-slate-200">{roomInfo.room_code ?? "-"}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Status</p>
-              <p className="text-sm text-slate-200">{roomInfo.status ?? "-"}</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Deadline Proyek</p>
+              <p className="text-sm text-slate-200">{formatDateTime(team.deadline)}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Roles</p>
@@ -211,9 +320,13 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Environments</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">
+                {isFinished ? "Diselesaikan" : "Environments"}
+              </p>
               <p className="text-sm text-slate-200">
-                {(roomInfo.environments ?? []).length > 0 ? (roomInfo.environments ?? []).join(", ") : "-"}
+                {isFinished
+                  ? formatDateTime(team.finished_at)
+                  : ((roomInfo.environments ?? []).length > 0 ? (roomInfo.environments ?? []).join(", ") : "-")}
               </p>
             </div>
           </div>
@@ -359,11 +472,16 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                   </div>
                   <ul className="space-y-1.5">
                     {roleTargets.map((t) => {
-                      const isEditing = editingTargetId === t.id;
+                      const tStatus = computeTargetStatus(t.deadline, t.completed_at, t.is_done);
+                      const tStatusClass = tStatus.variant === "late"
+                        ? "border-red-500/60 text-red-400 bg-red-500/10"
+                        : tStatus.variant === "doneLate"
+                          ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
+                          : "";
                       return (
                         <li
                           key={t.id}
-                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${
+                          className={`flex items-start gap-2 px-2.5 py-1.5 rounded-lg border ${
                             t.is_done
                               ? "bg-emerald-500/5 border-emerald-500/30"
                               : "bg-pp-elevated border-pp-border"
@@ -374,38 +492,30 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                             checked={t.is_done}
                             disabled={!canToggleHere || toggleTarget.isPending}
                             onChange={() => handleToggleTarget(t.id, t.role)}
-                            className="shrink-0 accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+                            className="mt-0.5 shrink-0 accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
                             title={canToggleHere ? "Centang target" : "Hanya anggota role ini yang bisa mencentang"}
                           />
-                          {isEditing ? (
-                            <div className="flex-1 flex items-center gap-1">
-                              <input
-                                value={editingTargetTitle}
-                                onChange={(e) => setEditingTargetTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSaveEditTarget();
-                                  if (e.key === "Escape") { setEditingTargetId(null); setEditingTargetTitle(""); }
-                                }}
-                                autoFocus
-                                className="flex-1 min-w-0 bg-pp-bg border border-pp-border rounded-md px-2 py-1 text-[12px] text-slate-100 outline-none focus:border-blue-500"
-                              />
-                              <button
-                                onClick={handleSaveEditTarget}
-                                disabled={updateTarget.isPending}
-                                className="text-[10px] px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                            </div>
-                          ) : (
-                            <span className={`flex-1 text-[12px] truncate ${t.is_done ? "line-through text-slate-500" : "text-slate-200"}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[12px] truncate ${t.is_done ? "line-through text-slate-500" : "text-slate-200"}`}>
                               {t.title}
-                            </span>
-                          )}
-                          {currentUserIsLeader && !isEditing && (
+                            </p>
+                            {(t.deadline || tStatus.label) && (
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                {t.deadline && (
+                                  <span className="text-[10px] text-slate-500">🕓 {formatDateTimeShort(t.deadline)}</span>
+                                )}
+                                {tStatus.label && (
+                                  <span className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${tStatusClass}`}>
+                                    {tStatus.label}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {currentUserIsLeader && (
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => { setEditingTargetId(t.id); setEditingTargetTitle(t.title); }}
+                                onClick={() => openEditTarget(t.id, t.title, t.deadline)}
                                 className="text-slate-500 hover:text-blue-400 p-1 rounded cursor-pointer"
                                 title="Edit"
                               >
@@ -429,21 +539,30 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                     )}
                   </ul>
                   {currentUserIsLeader && (
-                    <div className="mt-2 flex items-center gap-1.5">
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          value={draft}
+                          onChange={(e) => setNewTargetByRole((prev) => ({ ...prev, [role]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleAddTarget(role); }}
+                          placeholder="Tambah target..."
+                          className="flex-1 min-w-0 bg-pp-elevated border border-pp-border rounded-md px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-blue-500 placeholder:text-slate-600"
+                        />
+                        <button
+                          onClick={() => handleAddTarget(role)}
+                          disabled={!draft.trim() || createTarget.isPending}
+                          className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <IconPlus />
+                        </button>
+                      </div>
                       <input
-                        value={draft}
-                        onChange={(e) => setNewTargetByRole((prev) => ({ ...prev, [role]: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleAddTarget(role); }}
-                        placeholder="Tambah target..."
-                        className="flex-1 min-w-0 bg-pp-elevated border border-pp-border rounded-md px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-blue-500 placeholder:text-slate-600"
+                        type="datetime-local"
+                        value={newTargetDeadlineByRole[role] ?? ""}
+                        onChange={(e) => setNewTargetDeadlineByRole((prev) => ({ ...prev, [role]: e.target.value }))}
+                        title="Deadline target (opsional)"
+                        className="w-full bg-pp-elevated border border-pp-border rounded-md px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-blue-500"
                       />
-                      <button
-                        onClick={() => handleAddTarget(role)}
-                        disabled={!draft.trim() || createTarget.isPending}
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        <IconPlus />
-                      </button>
                     </div>
                   )}
                 </div>
@@ -583,6 +702,177 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               {profileMember.is_leader && (
                 <div className="text-amber-400 text-[12px]">Ketua Tim</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editProjectOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => { if (!updateTeam.isPending) setEditProjectOpen(false); }}
+          />
+          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+            <h3 className="text-base font-bold text-slate-100 mb-4">Edit Proyek</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Nama Proyek</label>
+                <input
+                  value={editProjectName}
+                  onChange={(e) => setEditProjectName(e.target.value)}
+                  placeholder="mis. Sistem Absensi Mahasiswa"
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors placeholder:text-slate-600"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Deskripsi</label>
+                <textarea
+                  value={editProjectDescription}
+                  onChange={(e) => setEditProjectDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Deskripsi singkat proyek..."
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors placeholder:text-slate-600 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Deadline Proyek</label>
+                <input
+                  type="datetime-local"
+                  value={editProjectDeadline}
+                  onChange={(e) => setEditProjectDeadline(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors"
+                />
+              </div>
+            </div>
+            {editProjectErr && (
+              <div className="mt-4 bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px]">
+                {editProjectErr}
+              </div>
+            )}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setEditProjectOpen(false)}
+                disabled={updateTeam.isPending}
+                className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveProject}
+                disabled={updateTeam.isPending}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
+              >
+                {updateTeam.isPending ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finishConfirmOpen && (() => {
+        const deadlinePassed = team.deadline ? Date.now() > new Date(team.deadline).getTime() : false;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { if (!finishTeam.isPending) setFinishConfirmOpen(false); }}
+            />
+            <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+              <h3 className="text-base font-bold text-slate-100 mb-2">Tandai proyek selesai?</h3>
+              <p className="text-sm text-[#8892a4] mb-3">
+                Sekali ditandai selesai, posisi ini tidak bisa dibatalkan. Status proyek akan menjadi{" "}
+                <strong className="text-slate-200">
+                  {deadlinePassed ? "\"Selesai Terlambat\"" : "\"Selesai\""}
+                </strong>.
+              </p>
+              {deadlinePassed && (
+                <div className="mb-4 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 text-amber-300 text-[12px]">
+                  Deadline proyek sudah lewat ({formatDateTime(team.deadline)}). Proyek akan tercatat sebagai Selesai Terlambat.
+                </div>
+              )}
+              {finishErr && (
+                <div className="bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px] mb-4">
+                  {finishErr}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setFinishConfirmOpen(false)}
+                  disabled={finishTeam.isPending}
+                  className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmFinish}
+                  disabled={finishTeam.isPending}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {finishTeam.isPending ? "Menyimpan..." : "Ya, Tandai Selesai"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {editingTargetId != null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => { if (!updateTarget.isPending) setEditingTargetId(null); }}
+          />
+          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+            <h3 className="text-base font-bold text-slate-100 mb-4">Edit Target</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Judul</label>
+                <input
+                  value={editingTargetTitle}
+                  onChange={(e) => setEditingTargetTitle(e.target.value)}
+                  autoFocus
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Deadline (opsional)</label>
+                <input
+                  type="datetime-local"
+                  value={editingTargetDeadline}
+                  onChange={(e) => setEditingTargetDeadline(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors"
+                />
+                {editingTargetDeadline && (
+                  <button
+                    onClick={() => setEditingTargetDeadline("")}
+                    className="mt-1 text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer"
+                  >
+                    Hapus deadline
+                  </button>
+                )}
+              </div>
+            </div>
+            {targetErr && (
+              <div className="mt-4 bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px]">
+                {targetErr}
+              </div>
+            )}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => { setEditingTargetId(null); setEditingTargetTitle(""); setEditingTargetDeadline(""); }}
+                disabled={updateTarget.isPending}
+                className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditTarget}
+                disabled={updateTarget.isPending || !editingTargetTitle.trim()}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
+              >
+                {updateTarget.isPending ? "Saving..." : "Save"}
+              </button>
             </div>
           </div>
         </div>

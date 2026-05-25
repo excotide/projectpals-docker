@@ -81,9 +81,13 @@ class MatchingController extends Controller
                     'number_of_groups' => $room->number_of_groups,
                 ],
                 'teams' => $teams->map(fn (Team $t) => [
-                    'id'          => $t->id,
-                    'team_number' => $t->team_number,
-                    'members'     => $t->members->map(fn ($tm) => [
+                    'id'           => $t->id,
+                    'team_number'  => $t->team_number,
+                    'project_name' => $t->project_name,
+                    'description'  => $t->description,
+                    'deadline'     => $t->deadline?->toIso8601String(),
+                    'finished_at'  => $t->finished_at?->toIso8601String(),
+                    'members'      => $t->members->map(fn ($tm) => [
                         'room_member_id' => $tm->room_member_id,
                         'assigned_role'  => $tm->assigned_role,
                         'score'          => (float) $tm->score,
@@ -214,8 +218,12 @@ class MatchingController extends Controller
             'message' => 'Teams formed.',
             'data' => [
                 'teams' => $teams->map(fn (Team $t) => [
-                    'id'          => $t->id,
-                    'team_number' => $t->team_number,
+                    'id'           => $t->id,
+                    'team_number'  => $t->team_number,
+                    'project_name' => $t->project_name,
+                    'description'  => $t->description,
+                    'deadline'     => $t->deadline?->toIso8601String(),
+                    'finished_at'  => $t->finished_at?->toIso8601String(),
                     'members' => $t->members->map(fn ($tm) => [
                         'room_member_id' => $tm->room_member_id,
                         'assigned_role' => $tm->assigned_role,
@@ -230,6 +238,75 @@ class MatchingController extends Controller
                 ])->values(),
                 'unassigned' => $out['unassigned'],
                 'meta' => $out['meta'],
+            ],
+        ]);
+    }
+
+    public function updateTeam(Request $request, Team $team): JsonResponse
+    {
+        if (! $team->isLeader(auth()->id())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only the team leader can update the project.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'project_name' => ['nullable', 'string', 'max:150'],
+            'description'  => ['nullable', 'string'],
+            'deadline'     => ['nullable', 'date'],
+        ]);
+
+        $payload = [];
+        foreach (['project_name', 'description', 'deadline'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $payload[$field] = $data[$field];
+            }
+        }
+
+        $team->update($payload);
+        $team->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project updated.',
+            'data' => [
+                'id'           => $team->id,
+                'team_number'  => $team->team_number,
+                'project_name' => $team->project_name,
+                'description'  => $team->description,
+                'deadline'     => $team->deadline?->toIso8601String(),
+                'finished_at'  => $team->finished_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function finishTeam(Team $team): JsonResponse
+    {
+        if (! $team->isLeader(auth()->id())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only the team leader can finish the project.',
+            ], 403);
+        }
+
+        if ($team->finished_at !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Project is already finished.',
+            ], 422);
+        }
+
+        $team->update(['finished_at' => now()]);
+        $team->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project marked as finished.',
+            'data' => [
+                'id'          => $team->id,
+                'finished_at' => $team->finished_at?->toIso8601String(),
+                'deadline'    => $team->deadline?->toIso8601String(),
             ],
         ]);
     }

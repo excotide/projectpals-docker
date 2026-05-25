@@ -11,6 +11,10 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $room_id
  * @property int $team_number
+ * @property string|null $project_name
+ * @property string|null $description
+ * @property Carbon|null $deadline
+ * @property Carbon|null $finished_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -19,6 +23,15 @@ class Team extends Model
     protected $fillable = [
         'room_id',
         'team_number',
+        'project_name',
+        'description',
+        'deadline',
+        'finished_at',
+    ];
+
+    protected $casts = [
+        'deadline' => 'datetime',
+        'finished_at' => 'datetime',
     ];
 
     public function room(): BelongsTo
