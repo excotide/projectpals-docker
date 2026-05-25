@@ -9,35 +9,30 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $team_id
- * @property int $room_member_id
- * @property string $assigned_role
- * @property float $score
- * @property bool $is_leader
+ * @property string $role
+ * @property string $title
+ * @property bool $is_done
+ * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-class TeamMember extends Model
+class TeamRoleTarget extends Model
 {
     protected $fillable = [
         'team_id',
-        'room_member_id',
-        'assigned_role',
-        'score',
-        'is_leader',
+        'role',
+        'title',
+        'is_done',
+        'sort_order',
     ];
 
     protected $casts = [
-        'score' => 'float',
-        'is_leader' => 'boolean',
+        'is_done' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
-    }
-
-    public function roomMember(): BelongsTo
-    {
-        return $this->belongsTo(RoomMember::class);
     }
 }

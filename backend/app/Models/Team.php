@@ -30,4 +30,32 @@ class Team extends Model
     {
         return $this->hasMany(TeamMember::class);
     }
+
+    public function targets(): HasMany
+    {
+        return $this->hasMany(TeamRoleTarget::class);
+    }
+
+    public function isLeader(?int $userId): bool
+    {
+        if (! $userId) {
+            return false;
+        }
+
+        return $this->members()
+            ->where('is_leader', true)
+            ->whereHas('roomMember', fn ($q) => $q->where('user_id', $userId))
+            ->exists();
+    }
+
+    public function memberForUser(?int $userId): ?TeamMember
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        return $this->members()
+            ->whereHas('roomMember', fn ($q) => $q->where('user_id', $userId))
+            ->first();
+    }
 }

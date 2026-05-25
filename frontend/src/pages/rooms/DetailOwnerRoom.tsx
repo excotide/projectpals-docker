@@ -13,37 +13,10 @@ import {
 } from "../../hooks/useRooms";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
+import MatchedTeamView from "../../components/teams/MatchedTeamView";
+import { ROLE_COLORS, capitalize, getInitials, getRoleColor } from "../../utils/teamHelpers";
 
-// ─── Role color palette ────────────────────────────────────────────────────────
-
-const ROLE_COLORS = [
-  { badge: "border border-cyan-400 text-cyan-400 bg-cyan-400/10",         avatar: "bg-cyan-500/20 text-cyan-300" },
-  { badge: "border border-emerald-400 text-emerald-400 bg-emerald-400/10", avatar: "bg-emerald-500/20 text-emerald-300" },
-  { badge: "border border-violet-400 text-violet-400 bg-violet-400/10",    avatar: "bg-violet-500/20 text-violet-300" },
-  { badge: "border border-amber-400 text-amber-400 bg-amber-400/10",       avatar: "bg-amber-500/20 text-amber-300" },
-  { badge: "border border-pink-400 text-pink-400 bg-pink-400/10",          avatar: "bg-pink-500/20 text-pink-300" },
-  { badge: "border border-orange-400 text-orange-400 bg-orange-400/10",    avatar: "bg-orange-500/20 text-orange-300" },
-];
-
-function getRoleColor(role: string | null | undefined, allRoles: string[]) {
-  const idx = role ? allRoles.indexOf(role) : -1;
-  return ROLE_COLORS[(idx >= 0 ? idx : allRoles.length) % ROLE_COLORS.length];
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// ─── Icons ─────────────────────────────────────────────────────────────────────
+// ─── Icons (non-matched view only) ─────────────────────────────────────────────
 
 const IconSearch = () => <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconInfo   = () => <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16" strokeWidth={2.5} strokeLinecap="round"/></svg>;
@@ -115,6 +88,7 @@ export default function DetailOwnerRoom() {
   const [confirmMatch, setConfirmMatch] = useState(false);
   const [matchErr, setMatchErr] = useState("");
   const [copied, setCopied] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | string | null>(null);
 
   // Edit form state
   const [editTheme,  setEditTheme]  = useState("");
@@ -148,10 +122,7 @@ export default function DetailOwnerRoom() {
 
   const initials = useMemo(() => {
     if (!user?.name) return "U";
-    const parts = user.name.trim().split(" ").filter(Boolean);
-    if (parts.length === 0) return "U";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return getInitials(user.name);
   }, [user?.name]);
 
   const handleNavClick = (label: string) => {
@@ -230,12 +201,10 @@ export default function DetailOwnerRoom() {
   const handleDeleteMember = async (id: number | string) => {
     if (!roomCode || removeMember.isPending) return;
     setActionErr("");
-    // Optimistic update — remove from UI immediately
     setLocalMembers(prev => prev.filter(m => m.id !== id));
     try {
       await removeMember.mutateAsync({ roomCode, memberId: id });
     } catch (err) {
-      // Roll back optimistic update on failure
       if (membersQuery.data?.members) setLocalMembers(membersQuery.data.members);
       setActionErr(err instanceof Error ? err.message : "Failed to remove member.");
     }
@@ -277,6 +246,19 @@ export default function DetailOwnerRoom() {
     (m.primary_role ?? "").toLowerCase().includes(memberSearch.toLowerCase())
   );
 
+  const allTeams = teamsQuery.data?.teams ?? [];
+  const selectedTeam = useMemo(() => {
+    if (allTeams.length === 0) return null;
+    if (selectedTeamId == null) return allTeams[0];
+    return allTeams.find((t) => String(t.id) === String(selectedTeamId)) ?? allTeams[0];
+  }, [allTeams, selectedTeamId]);
+
+  useEffect(() => {
+    if (selectedTeamId == null && allTeams.length > 0) {
+      setSelectedTeamId(allTeams[0].id);
+    }
+  }, [allTeams, selectedTeamId]);
+
   const isLoading = roomQuery.isLoading || membersQuery.isLoading;
   const queryErr  = roomQuery.error instanceof Error ? roomQuery.error.message : "";
 
@@ -301,8 +283,7 @@ export default function DetailOwnerRoom() {
           ]}
         />
 
-        {/* ── Content ────────────────────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+        <main className="flex-1 overflow-y-auto p-6">
 
           {isLoading && (
             <div className="bg-pp-card border border-pp-border rounded-2xl px-6 py-12 text-center text-slate-500 text-sm">
@@ -324,168 +305,134 @@ export default function DetailOwnerRoom() {
 
           {!isLoading && !queryErr && room && (
             <>
-              {/* ── Room Information ─────────────────────────────────────────── */}
-              <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-blue-400"><IconInfo /></span>
-                    <div>
-                      <h2 className="text-lg font-semibold text-white">
-                        {room.project_theme}
-                      </h2>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-[11px] text-slate-600 font-mono tracking-wider">
-                          {room.room_code}
-                        </p>
-                        {room.room_code && (
-                          <button
-                            onClick={handleCopyRoomCode}
-                            className={`px-2 py-1 rounded-md text-[10px] font-semibold border transition-colors ${
-                              copied
-                                ? "bg-emerald-900 text-emerald-400 border-emerald-700"
-                                : "bg-pp-elevated text-slate-500 border-pp-border hover:text-slate-200"
-                            }`}
-                          >
-                            {copied ? "Copied" : "Copy Code"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={openDeleteRoom}
-                      disabled={deleteMutation.isPending}
-                      className="px-4 py-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors border-none cursor-pointer"
-                    >
-                      {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                    </button>
-                    <button
-                      onClick={() => { setEditing(true); setActionErr(""); }}
-                      className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors border-none cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-
-                {/* Display mode */}
-                {!editing && (
-                  <div className="grid grid-cols-3 gap-6">
-                    <InfoBlock label="Roles">
-                      <div className="flex flex-wrap gap-1.5">
-                        {allRoles.length === 0
-                          ? <span className="text-sm text-slate-500">—</span>
-                          : allRoles.map((r, i) => (
-                            <span key={r} className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${ROLE_COLORS[i % ROLE_COLORS.length].badge}`}>{r}</span>
-                          ))
-                        }
-                      </div>
-                    </InfoBlock>
-                    <InfoBlock label="Max Member per Group">
-                      <p className="text-sm text-slate-200">{room.max_per_group} members</p>
-                    </InfoBlock>
-                    <InfoBlock label="Number of Groups">
-                      <p className="text-sm text-slate-200">{room.number_of_groups} groups</p>
-                    </InfoBlock>
-                    <InfoBlock label="Status">
-                      <StatusPill status={room.status ?? ""} />
-                    </InfoBlock>
-                    <InfoBlock label="Productivity Windows">
-                      <p className="text-sm text-slate-200">
-                        {(room.productivity_windows as string[] | undefined)?.map(capitalize).join(", ") || "—"}
-                      </p>
-                    </InfoBlock>
-                    <InfoBlock label="Environments">
-                      <p className="text-sm text-slate-200">
-                        {(room.environments as string[] | undefined)?.map(capitalize).join(", ") || "—"}
-                      </p>
-                    </InfoBlock>
-                  </div>
-                )}
-
-              </section>
-
-              {/* ── Teams view (when matched) ─────────────────────────────────────── */}
-              {isMatched && (
+              {!isMatched && (
                 <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-emerald-400">✦</span>
-                      <h2 className="text-lg font-semibold text-white">Teams formed</h2>
-                      <span className="text-xs text-slate-500 bg-pp-elevated px-2 py-0.5 rounded-full">
-                        {teamsQuery.data?.teams?.length ?? 0} teams
-                      </span>
+                      <span className="text-blue-400"><IconInfo /></span>
+                      <div>
+                        <h2 className="text-lg font-semibold text-white">
+                          {room.project_theme}
+                        </h2>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[11px] text-slate-600 font-mono tracking-wider">
+                            {room.room_code}
+                          </p>
+                          {room.room_code && (
+                            <button
+                              onClick={handleCopyRoomCode}
+                              className={`px-2 py-1 rounded-md text-[10px] font-semibold border transition-colors ${
+                                copied
+                                  ? "bg-emerald-900 text-emerald-400 border-emerald-700"
+                                  : "bg-pp-elevated text-slate-500 border-pp-border hover:text-slate-200"
+                              }`}
+                            >
+                              {copied ? "Copied" : "Copy Code"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={openDeleteRoom}
+                        disabled={deleteMutation.isPending}
+                        className="px-4 py-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors border-none cursor-pointer"
+                      >
+                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                      </button>
+                      <button
+                        onClick={() => { setEditing(true); setActionErr(""); }}
+                        className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors border-none cursor-pointer"
+                      >
+                        Edit
+                      </button>
                     </div>
                   </div>
 
+                  {!editing && (
+                    <div className="grid grid-cols-3 gap-6">
+                      <InfoBlock label="Roles">
+                        <div className="flex flex-wrap gap-1.5">
+                          {allRoles.length === 0
+                            ? <span className="text-sm text-slate-500">—</span>
+                            : allRoles.map((r, i) => (
+                              <span key={r} className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${ROLE_COLORS[i % ROLE_COLORS.length].badge}`}>{r}</span>
+                            ))
+                          }
+                        </div>
+                      </InfoBlock>
+                      <InfoBlock label="Max Member per Group">
+                        <p className="text-sm text-slate-200">{room.max_per_group} members</p>
+                      </InfoBlock>
+                      <InfoBlock label="Number of Groups">
+                        <p className="text-sm text-slate-200">{room.number_of_groups} groups</p>
+                      </InfoBlock>
+                      <InfoBlock label="Status">
+                        <StatusPill status={room.status ?? ""} />
+                      </InfoBlock>
+                      <InfoBlock label="Productivity Windows">
+                        <p className="text-sm text-slate-200">
+                          {(room.productivity_windows as string[] | undefined)?.map(capitalize).join(", ") || "—"}
+                        </p>
+                      </InfoBlock>
+                      <InfoBlock label="Environments">
+                        <p className="text-sm text-slate-200">
+                          {(room.environments as string[] | undefined)?.map(capitalize).join(", ") || "—"}
+                        </p>
+                      </InfoBlock>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ── Matched view: team tabs + shared MatchedTeamView ──────────── */}
+              {isMatched && (
+                <div className="space-y-6">
                   {teamsQuery.isLoading && (
                     <p className="text-center text-slate-600 text-sm py-8">Loading teams...</p>
                   )}
 
-                  {!teamsQuery.isLoading && teamsQuery.data && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        {teamsQuery.data.teams.map((team) => (
-                          <div key={team.team_number} className="bg-pp-elevated border border-pp-border rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                                <span className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-300 text-[11px] font-bold grid place-items-center">{team.team_number}</span>
-                                Team {team.team_number}
-                              </h3>
-                              <span className="text-[10px] text-slate-500">
-                                {team.members.length} / {teamsQuery.data?.room.max_per_group}
-                              </span>
-                            </div>
-                            {team.members.length === 0 && <p className="text-xs text-slate-600 italic">Empty</p>}
-                            <div className="space-y-2">
-                              {team.members.map((tm) => {
-                                const name = tm.user?.name ?? "Unknown";
-                                const colors = getRoleColor(tm.assigned_role, allRoles);
-                                return (
-                                  <div key={`${team.team_number}-${tm.room_member_id}`} className="flex items-center gap-3 p-2 rounded-lg bg-pp-bg border border-pp-border">
-                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${colors.avatar}`}>
-                                      {getInitials(name)}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-white truncate">{name}</p>
-                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
-                                          {tm.assigned_role}
-                                        </span>
-                                        {tm.user?.username && (
-                                          <span className="text-[10px] text-slate-600">@{tm.user.username}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <span className="text-[10px] font-mono text-emerald-400 shrink-0">{tm.score.toFixed(3)}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {teamsQuery.data.unassigned.length > 0 && (
-                        <div className="mt-5 border-t border-pp-border pt-4">
-                          <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-medium">
-                            Unassigned ({teamsQuery.data.unassigned.length})
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {teamsQuery.data.unassigned.map((u) => (
-                              <span key={u.room_member_id} className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                                {u.user?.name ?? `rm#${u.room_member_id}`}
-                                {u.primary_role && <span className="opacity-60"> · {u.primary_role}</span>}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
+                  {!teamsQuery.isLoading && teamsQuery.data && allTeams.length === 0 && (
+                    <p className="text-center text-slate-600 text-sm py-8">Belum ada team terbentuk.</p>
                   )}
-                </section>
+
+                  {!teamsQuery.isLoading && allTeams.length > 1 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {allTeams.map((t) => {
+                        const active = String(t.id) === String(selectedTeam?.id);
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTeamId(t.id)}
+                            className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors cursor-pointer border ${
+                              active
+                                ? "bg-blue-600 border-blue-500 text-white"
+                                : "bg-pp-elevated border-pp-border text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            Team {t.team_number}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedTeam && roomCode && (
+                    <MatchedTeamView
+                      team={selectedTeam}
+                      roomCode={roomCode}
+                      roomRoles={allRoles}
+                      roomInfo={{
+                        project_theme: room.project_theme,
+                        room_code: room.room_code,
+                        status: room.status,
+                        environments: room.environments as string[] | undefined,
+                      }}
+                    />
+                  )}
+                </div>
               )}
 
               {/* ── Bottom row (members + smart matching) — hidden when matched ──── */}
@@ -611,10 +558,7 @@ export default function DetailOwnerRoom() {
 
       {confirmMemberId != null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeDeleteMember}
-          />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeDeleteMember} />
           <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
             <h3 className="text-base font-bold text-slate-100 mb-2">Remove member?</h3>
             <p className="text-sm text-[#8892a4] mb-5">
@@ -675,10 +619,7 @@ export default function DetailOwnerRoom() {
 
       {confirmRoomDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeDeleteRoom}
-          />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeDeleteRoom} />
           <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
             <h3 className="text-base font-bold text-slate-100 mb-2">Delete room?</h3>
             <p className="text-sm text-[#8892a4] mb-5">
@@ -704,10 +645,7 @@ export default function DetailOwnerRoom() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={handleCancelEdit}
-          />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCancelEdit} />
           <div className="relative z-10 w-full max-w-2xl bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e2530] shrink-0">
               <h3 className="text-base font-bold text-slate-100">Edit Room</h3>

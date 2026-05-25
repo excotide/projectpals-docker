@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\TeamTargetController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -26,6 +27,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/rooms/{roomCode}/leave', [RoomController::class, 'leave']);
     Route::post('/rooms/{roomCode}/match', [MatchingController::class, 'match']);
     Route::get('/rooms/{roomCode}/teams', [MatchingController::class, 'teams']);
+    Route::post('/teams/{team}/transfer-leader', [MatchingController::class, 'transferLeader']);
+    Route::patch('/teams/{team}/members/{member}/role', [MatchingController::class, 'changeMemberRole']);
+    Route::get('/teams/{team}/targets', [TeamTargetController::class, 'index']);
+    Route::post('/teams/{team}/targets', [TeamTargetController::class, 'store']);
+    Route::patch('/teams/{team}/targets/{target}', [TeamTargetController::class, 'update']);
+    Route::delete('/teams/{team}/targets/{target}', [TeamTargetController::class, 'destroy']);
+    Route::post('/teams/{team}/targets/{target}/toggle', [TeamTargetController::class, 'toggle']);
     Route::post('/rooms/join', [RoomController::class, 'join']);
     Route::post('/rooms', [RoomController::class, 'store']);
 });

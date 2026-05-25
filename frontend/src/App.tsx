@@ -7,6 +7,7 @@ import LandingPage from "./pages/landing/LandingPage"
 import Dashboard from "./pages/dashboard/Dashboard"
 import MyRooms from "./pages/rooms/MyRooms"
 import RoomDetailRouter from "./pages/rooms/RoomDetailRouter"
+import MatchedRoomOverview from "./pages/rooms/MatchedRoomOverview"
 import ProfilePage from "./pages/profile/ProfilePage"
 import AdminLogin from "./pages/admin/AdminLogin"
 import AdminPanel from "./pages/admin/AdminPanel"
@@ -70,6 +71,14 @@ export default function App() {
           element={(
             <RequireAuth>
               <RoomDetailRouter />
+            </RequireAuth>
+          )}
+        />
+        <Route
+          path="/rooms/:roomCode/matched"
+          element={(
+            <RequireAuth>
+              <MatchedRoomOverview />
             </RequireAuth>
           )}
         />

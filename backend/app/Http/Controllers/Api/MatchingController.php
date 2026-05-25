@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Room;
 use App\Models\Team;
+use App\Models\TeamMember;
 use App\Services\TeamFormation\TeamFormationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -79,11 +81,13 @@ class MatchingController extends Controller
                     'number_of_groups' => $room->number_of_groups,
                 ],
                 'teams' => $teams->map(fn (Team $t) => [
+                    'id'          => $t->id,
                     'team_number' => $t->team_number,
                     'members'     => $t->members->map(fn ($tm) => [
                         'room_member_id' => $tm->room_member_id,
                         'assigned_role'  => $tm->assigned_role,
                         'score'          => (float) $tm->score,
+                        'is_leader'      => (bool) $tm->is_leader,
                         'primary_role'   => $tm->roomMember?->primary_role,
                         'backup_role'    => $tm->roomMember?->backup_role,
                         'user'           => $tm->roomMember && $tm->roomMember->user ? [
@@ -151,19 +155,36 @@ class MatchingController extends Controller
             DB::transaction(function () use ($room, $out): void {
                 Team::query()->where('room_id', $room->id)->delete();
 
+                $roomMembersById = $room->members->keyBy('id');
+
                 foreach ($out['teams'] as $teamNumber => $picks) {
                     $team = Team::create([
                         'room_id' => $room->id,
                         'team_number' => $teamNumber,
                     ]);
 
+                    $created = [];
                     foreach ($picks as $pick) {
-                        $team->members()->create([
+                        $tm = $team->members()->create([
                             'room_member_id' => $pick['member_id'],
                             'assigned_role' => $pick['assigned_role'],
                             'score' => $pick['score'],
                         ]);
+                        $created[] = ['tm' => $tm, 'pick' => $pick];
                     }
+
+                    if ($created === []) {
+                        continue;
+                    }
+
+                    $primaryMatchers = array_values(array_filter($created, function ($entry) use ($roomMembersById) {
+                        $rm = $roomMembersById[$entry['pick']['member_id']] ?? null;
+                        return $rm && $entry['pick']['assigned_role'] === $rm->primary_role;
+                    }));
+
+                    $pool = $primaryMatchers !== [] ? $primaryMatchers : $created;
+                    usort($pool, fn ($a, $b) => $b['pick']['score'] <=> $a['pick']['score']);
+                    $pool[0]['tm']->update(['is_leader' => true]);
                 }
 
                 $room->update(['status' => 'matched']);
@@ -193,11 +214,13 @@ class MatchingController extends Controller
             'message' => 'Teams formed.',
             'data' => [
                 'teams' => $teams->map(fn (Team $t) => [
+                    'id'          => $t->id,
                     'team_number' => $t->team_number,
                     'members' => $t->members->map(fn ($tm) => [
                         'room_member_id' => $tm->room_member_id,
                         'assigned_role' => $tm->assigned_role,
                         'score' => (float) $tm->score,
+                        'is_leader' => (bool) $tm->is_leader,
                         'user' => $tm->roomMember && $tm->roomMember->user ? [
                             'id' => $tm->roomMember->user->id,
                             'name' => $tm->roomMember->user->name,
@@ -207,6 +230,116 @@ class MatchingController extends Controller
                 ])->values(),
                 'unassigned' => $out['unassigned'],
                 'meta' => $out['meta'],
+            ],
+        ]);
+    }
+
+    public function changeMemberRole(Request $request, Team $team, TeamMember $member): JsonResponse
+    {
+        if ((int) $member->team_id !== (int) $team->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Member does not belong to this team.',
+            ], 404);
+        }
+
+        if (! $team->isLeader(auth()->id())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only the team leader can change member roles.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'assigned_role' => ['required', 'string', 'max:100'],
+        ]);
+
+        $room = $team->room;
+        $roomRoles = $room && \is_array($room->roles) ? $room->roles : [];
+        if (! \in_array($data['assigned_role'], $roomRoles, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid role for this room.',
+            ], 422);
+        }
+
+        $member->update(['assigned_role' => $data['assigned_role']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Member role updated.',
+            'data' => [
+                'room_member_id' => $member->room_member_id,
+                'assigned_role'  => $member->assigned_role,
+            ],
+        ]);
+    }
+
+    public function transferLeader(Request $request, Team $team): JsonResponse
+    {
+        $userId = auth()->id();
+
+        $data = $request->validate([
+            'new_leader_room_member_id' => ['required', 'integer'],
+        ]);
+
+        $currentLeader = TeamMember::query()
+            ->where('team_id', $team->id)
+            ->where('is_leader', true)
+            ->with('roomMember')
+            ->first();
+
+        if (! $currentLeader || ! $currentLeader->roomMember || (int) $currentLeader->roomMember->user_id !== (int) $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only the current team leader can transfer leadership.',
+            ], 403);
+        }
+
+        $newLeader = TeamMember::query()
+            ->where('team_id', $team->id)
+            ->where('room_member_id', $data['new_leader_room_member_id'])
+            ->first();
+
+        if (! $newLeader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target member is not part of this team.',
+            ], 422);
+        }
+
+        if ((int) $newLeader->id === (int) $currentLeader->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target member is already the leader.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($currentLeader, $newLeader): void {
+            $currentLeader->update(['is_leader' => false]);
+            $newLeader->update(['is_leader' => true]);
+        });
+
+        $team->load(['members.roomMember.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leadership transferred.',
+            'data' => [
+                'team_number' => $team->team_number,
+                'members' => $team->members->map(fn (TeamMember $tm) => [
+                    'room_member_id' => $tm->room_member_id,
+                    'assigned_role'  => $tm->assigned_role,
+                    'score'          => (float) $tm->score,
+                    'is_leader'      => (bool) $tm->is_leader,
+                    'primary_role'   => $tm->roomMember?->primary_role,
+                    'backup_role'    => $tm->roomMember?->backup_role,
+                    'user'           => $tm->roomMember && $tm->roomMember->user ? [
+                        'id'       => $tm->roomMember->user->id,
+                        'name'     => $tm->roomMember->user->name,
+                        'username' => $tm->roomMember->user->username,
+                    ] : null,
+                ])->values(),
             ],
         ]);
     }

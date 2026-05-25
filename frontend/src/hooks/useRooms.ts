@@ -96,12 +96,14 @@ export interface RoomTeamMember {
   room_member_id: number | string
   assigned_role: string
   score: number
+  is_leader: boolean
   primary_role: string | null
   backup_role: string | null
   user: RoomMemberUser | null
 }
 
 export interface RoomTeam {
+  id: number | string
   team_number: number
   members: RoomTeamMember[]
 }
@@ -128,11 +130,13 @@ export interface RoomTeamsResponse {
 
 export interface MatchResult {
   teams: Array<{
+    id: number | string
     team_number: number
     members: Array<{
       room_member_id: number | string
       assigned_role: string
       score: number
+      is_leader: boolean
       user: { id: number | string; name: string; username: string } | null
     }>
   }>
@@ -144,6 +148,60 @@ export interface MatchResult {
     total_members: number
     total_picks: number
   }
+}
+
+export interface TransferLeaderPayload {
+  teamId: number | string
+  newLeaderRoomMemberId: number | string
+  roomCode?: string
+}
+
+export interface TransferLeaderResponse {
+  team_number: number
+  members: RoomTeamMember[]
+}
+
+export interface ChangeMemberRolePayload {
+  teamId: number | string
+  roomMemberId: number | string
+  assignedRole: string
+  roomCode?: string
+}
+
+export interface TeamRoleTarget {
+  id: number | string
+  team_id: number | string
+  role: string
+  title: string
+  is_done: boolean
+  sort_order: number
+}
+
+export interface TeamTargetsResponse {
+  team_id: number | string
+  targets: TeamRoleTarget[]
+}
+
+export interface CreateTeamTargetPayload {
+  teamId: number | string
+  role: string
+  title: string
+}
+
+export interface UpdateTeamTargetPayload {
+  teamId: number | string
+  targetId: number | string
+  title: string
+}
+
+export interface DeleteTeamTargetPayload {
+  teamId: number | string
+  targetId: number | string
+}
+
+export interface ToggleTeamTargetPayload {
+  teamId: number | string
+  targetId: number | string
 }
 
 export interface DeleteOrLeaveRoomPayload {
@@ -185,6 +243,7 @@ const roomKeys = {
   joinPreview: (roomCode: string) => [...roomKeys.all, 'join-preview', roomCode] as const,
   members: (roomCode: string) => [...roomKeys.all, 'members', roomCode] as const,
   teams: (roomCode: string) => [...roomKeys.all, 'teams', roomCode] as const,
+  targets: (teamId: number | string) => [...roomKeys.all, 'targets', String(teamId)] as const,
 }
 
 export function useRooms() {
@@ -403,6 +462,113 @@ export function useStartMatching() {
         queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) }),
         queryClient.invalidateQueries({ queryKey: roomKeys.mine() }),
       ])
+    },
+  })
+}
+
+export function useTransferLeader() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, newLeaderRoomMemberId }: TransferLeaderPayload) => {
+      const response = await apiPost<TransferLeaderResponse>(`/teams/${teamId}/transfer-leader`, {
+        new_leader_room_member_id: newLeaderRoomMemberId,
+      })
+      return response.data
+    },
+    onSuccess: async (_data, { roomCode }) => {
+      if (roomCode) {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) })
+      } else {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.all })
+      }
+    },
+  })
+}
+
+export function useChangeMemberRole() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, roomMemberId, assignedRole }: ChangeMemberRolePayload) => {
+      const response = await apiPatch<{ room_member_id: number | string; assigned_role: string }>(
+        `/teams/${teamId}/members/${roomMemberId}/role`,
+        { assigned_role: assignedRole },
+      )
+      return response.data
+    },
+    onSuccess: async (_data, { roomCode }) => {
+      if (roomCode) {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.teams(roomCode) })
+      } else {
+        await queryClient.invalidateQueries({ queryKey: roomKeys.all })
+      }
+    },
+  })
+}
+
+export function useTeamTargets(teamId?: number | string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roomKeys.targets(teamId ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<TeamTargetsResponse>(`/teams/${teamId}/targets`)
+      return response.data
+    },
+    enabled: Boolean(teamId) && (options?.enabled ?? true),
+  })
+}
+
+export function useCreateTeamTarget() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, role, title }: CreateTeamTargetPayload) => {
+      const response = await apiPost<TeamRoleTarget>(`/teams/${teamId}/targets`, { role, title })
+      return response.data
+    },
+    onSuccess: async (_data, { teamId }) => {
+      await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
+    },
+  })
+}
+
+export function useUpdateTeamTarget() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, targetId, title }: UpdateTeamTargetPayload) => {
+      const response = await apiPatch<TeamRoleTarget>(`/teams/${teamId}/targets/${targetId}`, { title })
+      return response.data
+    },
+    onSuccess: async (_data, { teamId }) => {
+      await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
+    },
+  })
+}
+
+export function useDeleteTeamTarget() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, targetId }: DeleteTeamTargetPayload) => {
+      await apiDelete<null>(`/teams/${teamId}/targets/${targetId}`)
+    },
+    onSuccess: async (_data, { teamId }) => {
+      await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
+    },
+  })
+}
+
+export function useToggleTeamTarget() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, targetId }: ToggleTeamTargetPayload) => {
+      const response = await apiPost<TeamRoleTarget>(`/teams/${teamId}/targets/${targetId}/toggle`)
+      return response.data
+    },
+    onSuccess: async (_data, { teamId }) => {
+      await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
     },
   })
 }

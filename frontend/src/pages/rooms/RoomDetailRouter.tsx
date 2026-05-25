@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { useRoomByCode } from "../../hooks/useRooms";
 import DetailOwnerRoom from "./DetailOwnerRoom";
 import DetailMemberRoom from "./DetailMemberRoom";
@@ -25,6 +25,10 @@ export default function RoomDetailRouter() {
 
   if (data?.access.is_owner) {
     return <DetailOwnerRoom />;
+  }
+
+  if (data?.room?.status === "matched") {
+    return <Navigate to={`/rooms/${roomCode}/matched`} replace />;
   }
 
   return <DetailMemberRoom />;
