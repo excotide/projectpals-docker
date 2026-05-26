@@ -47,13 +47,6 @@ class RoomController extends Controller
             ], 404);
         }
 
-        if ($room->status === 'closed') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Room is closed and cannot accept new members.',
-            ], 422);
-        }
-
         return response()->json([
             'success' => true,
             'message' => 'Room preview fetched successfully.',
@@ -380,12 +373,6 @@ class RoomController extends Controller
             ], 404);
         }
 
-        if ($room->status === 'closed') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Room is closed and cannot accept new members.',
-            ], 422);
-        }
 
         $availableRoles = \is_array($room->roles) ? $room->roles : [];
 

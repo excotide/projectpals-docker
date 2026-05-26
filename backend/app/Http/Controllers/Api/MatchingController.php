@@ -191,7 +191,7 @@ class MatchingController extends Controller
                     $pool[0]['tm']->update(['is_leader' => true]);
                 }
 
-                $room->update(['status' => 'matched']);
+                $room->update(['status' => 'ongoing']);
             });
         } catch (Throwable $e) {
             $room->update(['status' => 'open']);

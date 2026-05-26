@@ -73,14 +73,14 @@ export function computeProjectStatus(
   const finishedAt = finishedAtIso ? new Date(finishedAtIso) : null;
   if (finishedAt) {
     if (deadline && finishedAt.getTime() > deadline.getTime()) {
-      return { label: "Selesai Terlambat", variant: "doneLate" };
+      return { label: "Finished Late", variant: "doneLate" };
     }
-    return { label: "Selesai", variant: "done" };
+    return { label: "Finished", variant: "done" };
   }
   if (deadline && Date.now() > deadline.getTime()) {
-    return { label: "Terlambat", variant: "late" };
+    return { label: "Late", variant: "late" };
   }
-  return { label: "Berjalan", variant: "running" };
+  return { label: "Ongoing", variant: "running" };
 }
 
 export type TargetStatusVariant = "late" | "doneLate" | null;
@@ -95,12 +95,12 @@ export function computeTargetStatus(
   if (isDone) {
     const completed = completedAtIso ? new Date(completedAtIso) : null;
     if (completed && completed.getTime() > deadline.getTime()) {
-      return { label: "Selesai Terlambat", variant: "doneLate" };
+      return { label: "Finished Late", variant: "doneLate" };
     }
     return { label: null, variant: null };
   }
   if (Date.now() > deadline.getTime()) {
-    return { label: "Terlambat", variant: "late" };
+    return { label: "Late", variant: "late" };
   }
   return { label: null, variant: null };
 }

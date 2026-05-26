@@ -27,7 +27,7 @@ export default function RoomDetailRouter() {
     return <DetailOwnerRoom />;
   }
 
-  if (data?.room?.status === "matched") {
+  if (data?.room?.status === "ongoing") {
     return <Navigate to={`/rooms/${roomCode}/matched`} replace />;
   }
 

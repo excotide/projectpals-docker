@@ -81,7 +81,7 @@ export interface FinalizeJoinResult {
   }
 }
 
-export type RoomStatus = 'open' | 'matching' | 'ongoing' | 'closed' | 'matched'
+export type RoomStatus = 'open' | 'matching' | 'ongoing'
 
 export interface UpdateRoomPayload {
   roomCode: string

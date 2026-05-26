@@ -12,21 +12,19 @@ type RoomItem = {
   id: number;
   project_theme: string;
   room_code: string;
-  status: "open" | "matching" | "ongoing" | "closed";
+  status: "open" | "matching" | "ongoing";
 };
 
-type RoomDisplayStatus = "Ongoing" | "Waiting" | "Completed";
+type RoomDisplayStatus = "Ongoing" | "Waiting";
 
 function mapRoomStatus(status: RoomItem["status"]): RoomDisplayStatus {
   if (status === "ongoing") return "Ongoing";
-  if (status === "closed") return "Completed";
   return "Waiting";
 }
 
 const STATUS_BADGE_CLASSES: Record<RoomDisplayStatus, string> = {
-  Ongoing:   "border-green-500 text-green-500",
+  Ongoing:   "border-emerald-500 text-emerald-400",
   Waiting:   "border-slate-400 text-slate-400",
-  Completed: "border-blue-400 text-blue-400",
 };
 
 // ============================================================

@@ -14,7 +14,7 @@ export default function MatchedRoomOverview() {
   const { data: user } = useCurrentUser();
   const logoutMutation = useLogout();
   const roomQuery = useRoomByCode(roomCode);
-  const teamsQuery = useRoomTeams(roomCode, { enabled: roomQuery.data?.room?.status === "matched" });
+  const teamsQuery = useRoomTeams(roomCode, { enabled: roomQuery.data?.room?.status === "ongoing" });
 
   const [activeNav, setActiveNav] = useState("My Rooms");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -39,7 +39,7 @@ export default function MatchedRoomOverview() {
 
   useEffect(() => {
     if (!room || roomQuery.isLoading) return;
-    if (access.is_owner || room.status !== "matched") {
+    if (access.is_owner || room.status !== "ongoing") {
       navigate(`/rooms/${roomCode}`, { replace: true });
     }
   }, [access.is_owner, navigate, room, roomCode, roomQuery.isLoading]);

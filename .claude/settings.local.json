@@ -16,7 +16,8 @@
       "Bash(php -l backend/database/migrations/2026_05_25_000001_create_team_role_targets_table.php)",
       "Bash(php -l backend/routes/api.php)",
       "Bash(php -l backend/app/Models/TeamFeedback.php)",
-      "Bash(php -l backend/app/Http/Controllers/Api/TeamFeedbackController.php)"
+      "Bash(php -l backend/app/Http/Controllers/Api/TeamFeedbackController.php)",
+      "Bash(php -l backend/app/Http/Controllers/Api/RoomController.php)"
     ]
   }
 }

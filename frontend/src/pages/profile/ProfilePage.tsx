@@ -5,7 +5,7 @@ import { useMyRooms } from "../../hooks/useRooms";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
-type RoomStatus = "open" | "matching" | "ongoing" | "closed";
+type RoomStatus = "open" | "matching" | "ongoing";
 
 type RoomItem = {
   id: number | string;

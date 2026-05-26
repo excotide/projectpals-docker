@@ -349,7 +349,7 @@ export default function DetailMemberRoom() {
   const joinMutation    = useJoinRoom();
   const leaveMutation   = useDeleteOrLeaveRoom();
 
-  const isMatched = roomQuery.data?.room?.status === "matched";
+  const isMatched = roomQuery.data?.room?.status === "ongoing";
   const teamsQuery = useRoomTeams(roomCode, { enabled: isMatched });
 
   const [activeNav,   setActiveNav]   = useState("My Rooms");

@@ -28,15 +28,13 @@ const IconX      = () => <svg width="12" height="12" fill="none" viewBox="0 0 24
 
 // ─── Status ────────────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS = ["open", "matching", "ongoing", "matched", "closed"] as const;
+const STATUS_OPTIONS = ["open", "matching", "ongoing"] as const;
 type RoomStatus = typeof STATUS_OPTIONS[number];
 
 const STATUS_PILL: Record<string, string> = {
   open:     "border-green-500 text-green-500",
   matching: "border-purple-400 text-purple-400",
-  ongoing:  "border-blue-500 text-blue-500",
-  matched:  "border-emerald-500 text-emerald-400",
-  closed:   "border-slate-500 text-slate-500",
+  ongoing:  "border-emerald-500 text-emerald-400",
 };
 
 // ─── Helper sub-components ─────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ export default function DetailOwnerRoom() {
   const startMatching   = useStartMatching();
 
   const roomStatus = roomQuery.data?.room?.status;
-  const isMatched = roomStatus === "matched";
+  const isMatched = roomStatus === "ongoing";
   const teamsQuery = useRoomTeams(roomCode, { enabled: isMatched });
 
   const [activeNav,  setActiveNav]  = useState("My Rooms");
@@ -589,7 +587,7 @@ export default function DetailOwnerRoom() {
             <h3 className="text-base font-bold text-slate-100 mb-2">Start smart matching?</h3>
             <p className="text-sm text-[#8892a4] mb-5">
               Form teams from <strong>{localMembers.length}</strong> members into <strong>{room?.number_of_groups}</strong> group(s)
-              of up to <strong>{room?.max_per_group}</strong> each. The room status will become <code>matched</code> and members will be
+              of up to <strong>{room?.max_per_group}</strong> each. The room status will become <code>ongoing</code> and members will be
               assigned to teams.
             </p>
             {matchErr && (

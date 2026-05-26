@@ -876,12 +876,12 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               <p className="text-sm text-[#8892a4] mb-3">
                 Sekali ditandai selesai, posisi ini tidak bisa dibatalkan. Status proyek akan menjadi{" "}
                 <strong className="text-slate-200">
-                  {deadlinePassed ? "\"Selesai Terlambat\"" : "\"Selesai\""}
+                  {deadlinePassed ? "\"Finished Late\"" : "\"Finished\""}
                 </strong>.
               </p>
               {deadlinePassed && (
                 <div className="mb-4 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 text-amber-300 text-[12px]">
-                  Deadline proyek sudah lewat ({formatDateTime(team.deadline)}). Proyek akan tercatat sebagai Selesai Terlambat.
+                  Deadline proyek sudah lewat ({formatDateTime(team.deadline)}). Proyek akan tercatat sebagai Finished Late.
                 </div>
               )}
               {feedbackStatus && !feedbackStatus.complete && feedbackStatus.total_required > 0 && (

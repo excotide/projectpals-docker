@@ -18,7 +18,7 @@ type RoomDetailData = {
   environments: string[];
   max_per_group: number;
   number_of_groups: number;
-  status: "open" | "matching" | "ongoing" | "closed";
+  status: "open" | "matching" | "ongoing";
   created_at: string;
   owner?: RoomOwner;
 };
@@ -33,7 +33,7 @@ type RoomFormData = {
   roles: string;
   max_per_group: number;
   number_of_groups: number;
-  status: "open" | "matching" | "ongoing" | "closed";
+  status: "open" | "matching" | "ongoing";
 };
 
 export default function RoomDetail() {
@@ -363,7 +363,6 @@ export default function RoomDetail() {
                         <option value="open">OPEN</option>
                         <option value="matching">MATCHING</option>
                         <option value="ongoing">ONGOING</option>
-                        <option value="closed">CLOSED</option>
                       </select>
                     </label>
                   </div>

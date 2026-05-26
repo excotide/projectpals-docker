@@ -42,9 +42,7 @@ const FILTER_TABS = [
   { key: "all",      label: "All" },
   { key: "open",     label: "Open" },
   { key: "matching", label: "Matching" },
-  { key: "matched",  label: "Matched" },
   { key: "ongoing",  label: "Ongoing" },
-  { key: "closed",   label: "Closed" },
 ] as const;
 type FilterKey = typeof FILTER_TABS[number]["key"];
 
