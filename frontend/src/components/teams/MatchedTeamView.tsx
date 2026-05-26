@@ -4,7 +4,11 @@ import {
   useChangeMemberRole,
   useCreateTeamTarget,
   useDeleteTeamTarget,
+  useFeedbackStatus,
+  useFeedbacksGiven,
+  useFeedbacksReceived,
   useFinishTeam,
+  useGiveFeedback,
   useTeamTargets,
   useToggleTeamTarget,
   useTransferLeader,
@@ -23,7 +27,7 @@ import {
   localInputToIso,
   type ProjectStatusVariant,
 } from "../../utils/teamHelpers";
-import { IconCrown, IconPencil, IconPlus, IconTrash } from "../icons/TeamIcons";
+import { IconCrown, IconPencil, IconPlus, IconStar, IconTrash } from "../icons/TeamIcons";
 
 const PROJECT_STATUS_PILL: Record<ProjectStatusVariant, string> = {
   running:  "border-blue-500 text-blue-400 bg-blue-500/10",
@@ -56,9 +60,14 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   const deleteTarget    = useDeleteTeamTarget();
   const toggleTarget    = useToggleTeamTarget();
   const targetsQuery    = useTeamTargets(team.id, { enabled: Boolean(team.id) });
+  const feedbackStatusQuery = useFeedbackStatus(team.id, { enabled: Boolean(team.id) });
+  const feedbacksGivenQuery = useFeedbacksGiven(team.id, { enabled: Boolean(team.id) });
+  const giveFeedback = useGiveFeedback();
 
   const projectStatus = computeProjectStatus(team.deadline, team.finished_at);
   const isFinished = team.finished_at != null;
+  const feedbackStatus = feedbackStatusQuery.data;
+  const feedbacksGiven = feedbacksGivenQuery.data?.feedbacks ?? [];
 
   const teamMembers = team.members;
 
@@ -113,6 +122,14 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   const [editProjectErr, setEditProjectErr] = useState("");
   const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
   const [finishErr, setFinishErr] = useState("");
+  const [feedbackTargetId, setFeedbackTargetId] = useState<number | string | null>(null);
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackErr, setFeedbackErr] = useState("");
+
+  const profileFeedbacksQuery = useFeedbacksReceived(team.id, profileMemberId ?? undefined, {
+    enabled: profileMemberId != null,
+  });
 
   useEffect(() => {
     if (activeMemberMenuId == null) return;
@@ -239,6 +256,40 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
     } catch (err) {
       const anyErr = err as { payload?: { message?: string } };
       setFinishErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to finish project."));
+    }
+  };
+
+  const openFeedback = (roomMemberId: number | string) => {
+    setFeedbackErr("");
+    const existing = feedbacksGiven.find((f) => String(f.to_room_member_id) === String(roomMemberId));
+    setFeedbackContent(existing?.content ?? "");
+    setFeedbackRating(existing?.rating ?? 0);
+    setFeedbackTargetId(roomMemberId);
+    setActiveMemberMenuId(null);
+  };
+
+  const closeFeedback = () => {
+    setFeedbackTargetId(null);
+    setFeedbackContent("");
+    setFeedbackRating(0);
+    setFeedbackErr("");
+  };
+
+  const handleSaveFeedback = async () => {
+    if (feedbackTargetId == null) return;
+    if (feedbackRating < 1 || feedbackRating > 5) { setFeedbackErr("Pilih rating 1-5."); return; }
+    setFeedbackErr("");
+    try {
+      await giveFeedback.mutateAsync({
+        teamId: team.id,
+        toRoomMemberId: feedbackTargetId,
+        rating: feedbackRating,
+        content: feedbackContent.trim(),
+      });
+      closeFeedback();
+    } catch (err) {
+      const anyErr = err as { payload?: { message?: string } };
+      setFeedbackErr(anyErr?.payload?.message ?? (err instanceof Error ? err.message : "Failed to save feedback."));
     }
   };
 
@@ -401,6 +452,14 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                         >
                           Lihat Profile
                         </button>
+                        {!isSelf && feedbackStatus?.my_room_member_id != null && (
+                          <button
+                            onClick={() => openFeedback(member.room_member_id)}
+                            className="w-full text-left px-3 py-2 text-[12px] text-slate-200 hover:bg-white/5 cursor-pointer border-t border-pp-border"
+                          >
+                            {feedbacksGiven.some((f) => String(f.to_room_member_id) === String(member.room_member_id)) ? "Edit Feedback" : "Beri Feedback"}
+                          </button>
+                        )}
                         {canChangeRole && (
                           <button
                             onClick={() => openChangeRole(member.room_member_id, member.assigned_role ?? "")}
@@ -665,7 +724,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setProfileMemberId(null)}
           />
-          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-100">Profile Anggota</h3>
               <button
@@ -702,6 +761,40 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               {profileMember.is_leader && (
                 <div className="text-amber-400 text-[12px]">Ketua Tim</div>
               )}
+              <div className="pt-3 border-t border-pp-border">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Feedback Diterima</p>
+                {profileFeedbacksQuery.isLoading && (
+                  <p className="text-[12px] text-slate-500">Loading...</p>
+                )}
+                {!profileFeedbacksQuery.isLoading && (profileFeedbacksQuery.data?.feedbacks ?? []).length === 0 && (
+                  <p className="text-[12px] text-slate-500 italic">Belum ada feedback.</p>
+                )}
+                {(profileFeedbacksQuery.data?.feedbacks ?? []).length > 0 && (
+                  <ul className="space-y-2">
+                    {(profileFeedbacksQuery.data?.feedbacks ?? []).map((f) => (
+                      <li key={f.id} className="bg-pp-elevated border border-pp-border rounded-lg px-3 py-2">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <p className="text-[11px] text-slate-400">
+                            Dari <span className="text-slate-200">{f.from_user?.name ?? "Anggota"}</span>
+                          </p>
+                          {f.rating != null && (
+                            <span className="inline-flex items-center gap-0.5 text-amber-400">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <IconStar key={n} size={11} filled={n <= (f.rating ?? 0)} />
+                              ))}
+                            </span>
+                          )}
+                        </div>
+                        {f.content && f.content.trim() ? (
+                          <p className="text-[12px] text-slate-200 whitespace-pre-wrap">{f.content}</p>
+                        ) : (
+                          <p className="text-[11px] text-slate-600 italic">Tanpa alasan.</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -791,6 +884,11 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                   Deadline proyek sudah lewat ({formatDateTime(team.deadline)}). Proyek akan tercatat sebagai Selesai Terlambat.
                 </div>
               )}
+              {feedbackStatus && !feedbackStatus.complete && feedbackStatus.total_required > 0 && (
+                <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-lg px-3 py-2 text-red-300 text-[12px]">
+                  ❌ Proyek belum bisa diselesaikan. <strong className="text-red-200">{feedbackStatus.total_given}/{feedbackStatus.total_required}</strong> anggota sudah memberi feedback ke <em>semua</em> anggota lain. Setiap anggota wajib memberi feedback ke seluruh anggota team.
+                </div>
+              )}
               {finishErr && (
                 <div className="bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px] mb-4">
                   {finishErr}
@@ -806,8 +904,9 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                 </button>
                 <button
                   onClick={handleConfirmFinish}
-                  disabled={finishTeam.isPending}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                  disabled={finishTeam.isPending || (feedbackStatus != null && !feedbackStatus.complete)}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={feedbackStatus && !feedbackStatus.complete ? "Tunggu semua anggota memberi feedback" : ""}
                 >
                   {finishTeam.isPending ? "Menyimpan..." : "Ya, Tandai Selesai"}
                 </button>
@@ -877,6 +976,81 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
           </div>
         </div>
       )}
+
+      {feedbackTargetId != null && (() => {
+        const targetMemberForFb = teamMembers.find((m) => m.room_member_id === feedbackTargetId);
+        const existing = feedbacksGiven.find((f) => String(f.to_room_member_id) === String(feedbackTargetId));
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { if (!giveFeedback.isPending) closeFeedback(); }}
+            />
+            <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+              <h3 className="text-base font-bold text-slate-100 mb-2">
+                {existing ? "Edit Feedback" : "Beri Feedback"}
+              </h3>
+              <p className="text-sm text-[#8892a4] mb-4">
+                Untuk <strong className="text-slate-200">{targetMemberForFb?.user?.name ?? "anggota"}</strong>
+              </p>
+              <div className="mb-4">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-medium">Rating</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setFeedbackRating(n)}
+                      className={`p-1 transition-colors cursor-pointer ${
+                        n <= feedbackRating ? "text-amber-400" : "text-slate-600 hover:text-slate-400"
+                      }`}
+                      title={`${n} bintang`}
+                    >
+                      <IconStar size={24} filled={n <= feedbackRating} />
+                    </button>
+                  ))}
+                  <span className="ml-2 text-[11px] text-slate-500">
+                    {feedbackRating > 0 ? `${feedbackRating}/5` : "Belum pilih"}
+                  </span>
+                </div>
+              </div>
+              <div className="mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-medium">Alasan / Deskripsi <span className="lowercase text-slate-600 tracking-normal">(opsional)</span></label>
+                <textarea
+                  value={feedbackContent}
+                  onChange={(e) => setFeedbackContent(e.target.value)}
+                  rows={4}
+                  maxLength={1000}
+                  placeholder="Boleh dikosongkan. Kalau diisi: kenapa kasih rating ini? Kontribusi, kerja sama, dll..."
+                  className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors placeholder:text-slate-600 resize-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1 text-right">{feedbackContent.length}/1000</p>
+              </div>
+              {feedbackErr && (
+                <div className="mt-3 bg-[#1f0a0a] border border-red-500 rounded-lg px-3 py-2 text-red-400 text-[12px]">
+                  {feedbackErr}
+                </div>
+              )}
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={closeFeedback}
+                  disabled={giveFeedback.isPending}
+                  className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveFeedback}
+                  disabled={giveFeedback.isPending || feedbackRating < 1}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  {giveFeedback.isPending ? "Saving..." : "Simpan Feedback"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

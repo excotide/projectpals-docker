@@ -265,6 +265,10 @@ const roomKeys = {
   members: (roomCode: string) => [...roomKeys.all, 'members', roomCode] as const,
   teams: (roomCode: string) => [...roomKeys.all, 'teams', roomCode] as const,
   targets: (teamId: number | string) => [...roomKeys.all, 'targets', String(teamId)] as const,
+  feedbackStatus: (teamId: number | string) => [...roomKeys.all, 'feedback-status', String(teamId)] as const,
+  feedbacksGiven: (teamId: number | string) => [...roomKeys.all, 'feedbacks-given', String(teamId)] as const,
+  feedbacksReceived: (teamId: number | string, roomMemberId: number | string) =>
+    [...roomKeys.all, 'feedbacks-received', String(teamId), String(roomMemberId)] as const,
 }
 
 export function useRooms() {
@@ -629,6 +633,97 @@ export function useDeleteTeamTarget() {
     },
     onSuccess: async (_data, { teamId }) => {
       await queryClient.invalidateQueries({ queryKey: roomKeys.targets(teamId) })
+    },
+  })
+}
+
+export interface FeedbackStatusResponse {
+  team_id: number | string
+  total_required: number
+  total_given: number
+  complete: boolean
+  my_room_member_id: number | string | null
+  my_complete: boolean
+  my_missing_targets: Array<number | string>
+  missing_contributors: Array<number | string>
+}
+
+export interface TeamFeedback {
+  id: number | string
+  team_id: number | string
+  from_room_member_id: number | string
+  to_room_member_id: number | string
+  rating: number | null
+  content: string
+  created_at: string | null
+  updated_at: string | null
+  from_user?: { id: number | string; name: string; username: string } | null
+}
+
+export function useFeedbackStatus(teamId?: number | string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roomKeys.feedbackStatus(teamId ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<FeedbackStatusResponse>(`/teams/${teamId}/feedbacks/status`)
+      return response.data
+    },
+    enabled: Boolean(teamId) && (options?.enabled ?? true),
+  })
+}
+
+export function useFeedbacksGiven(teamId?: number | string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: roomKeys.feedbacksGiven(teamId ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<{ team_id: number | string; feedbacks: TeamFeedback[] }>(`/teams/${teamId}/feedbacks/given`)
+      return response.data
+    },
+    enabled: Boolean(teamId) && (options?.enabled ?? true),
+  })
+}
+
+export function useFeedbacksReceived(
+  teamId?: number | string,
+  roomMemberId?: number | string,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: roomKeys.feedbacksReceived(teamId ?? 'unknown', roomMemberId ?? 'unknown'),
+    queryFn: async () => {
+      const response = await apiGet<{ team_id: number | string; room_member_id: number | string; feedbacks: TeamFeedback[] }>(
+        `/teams/${teamId}/members/${roomMemberId}/feedbacks`,
+      )
+      return response.data
+    },
+    enabled: Boolean(teamId) && Boolean(roomMemberId) && (options?.enabled ?? true),
+  })
+}
+
+export interface GiveFeedbackPayload {
+  teamId: number | string
+  toRoomMemberId: number | string
+  rating: number
+  content?: string
+}
+
+export function useGiveFeedback() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ teamId, toRoomMemberId, rating, content }: GiveFeedbackPayload) => {
+      const response = await apiPost<TeamFeedback>(`/teams/${teamId}/feedbacks`, {
+        to_room_member_id: toRoomMemberId,
+        rating,
+        content: content ?? '',
+      })
+      return response.data
+    },
+    onSuccess: async (_data, { teamId, toRoomMemberId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: roomKeys.feedbackStatus(teamId) }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.feedbacksGiven(teamId) }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.feedbacksReceived(teamId, toRoomMemberId) }),
+      ])
     },
   })
 }

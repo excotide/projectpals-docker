@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\TeamFeedbackController;
 use App\Http\Controllers\Api\TeamTargetController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/teams/{team}/targets/{target}', [TeamTargetController::class, 'update']);
     Route::delete('/teams/{team}/targets/{target}', [TeamTargetController::class, 'destroy']);
     Route::post('/teams/{team}/targets/{target}/toggle', [TeamTargetController::class, 'toggle']);
+    Route::get('/teams/{team}/feedbacks/status', [TeamFeedbackController::class, 'status']);
+    Route::get('/teams/{team}/feedbacks/given', [TeamFeedbackController::class, 'given']);
+    Route::get('/teams/{team}/members/{roomMemberId}/feedbacks', [TeamFeedbackController::class, 'received']);
+    Route::post('/teams/{team}/feedbacks', [TeamFeedbackController::class, 'store']);
     Route::post('/rooms/join', [RoomController::class, 'join']);
     Route::post('/rooms', [RoomController::class, 'store']);
 });

@@ -13,11 +13,13 @@ class TeamTargetController extends Controller
     public function index(Team $team): JsonResponse
     {
         $userId = auth()->id();
+        $isOwner = $team->room && (int) $team->room->created_by === (int) $userId;
+        $isMember = $team->memberForUser($userId) !== null;
 
-        if (! $team->memberForUser($userId)) {
+        if (! $isOwner && ! $isMember) {
             return response()->json([
                 'success' => false,
-                'message' => 'You are not a member of this team.',
+                'message' => 'You do not have access to this team.',
             ], 403);
         }
 

@@ -297,6 +297,45 @@ class MatchingController extends Controller
             ], 422);
         }
 
+        $memberIds = TeamMember::query()
+            ->where('team_id', $team->id)
+            ->pluck('room_member_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $memberCount = \count($memberIds);
+        if ($memberCount > 1) {
+            $expectedPerMember = $memberCount - 1;
+
+            $rows = \App\Models\TeamFeedback::query()
+                ->where('team_id', $team->id)
+                ->whereIn('from_room_member_id', $memberIds)
+                ->whereIn('to_room_member_id', $memberIds)
+                ->selectRaw('from_room_member_id, count(distinct to_room_member_id) as cnt')
+                ->groupBy('from_room_member_id')
+                ->get();
+
+            $given = [];
+            foreach ($rows as $row) {
+                $given[(int) $row->from_room_member_id] = (int) $row->cnt;
+            }
+
+            $incomplete = [];
+            foreach ($memberIds as $rmId) {
+                if (($given[$rmId] ?? 0) < $expectedPerMember) {
+                    $incomplete[] = $rmId;
+                }
+            }
+
+            if ($incomplete !== []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Setiap anggota team harus memberi feedback ke semua anggota lain sebelum proyek bisa diselesaikan.',
+                    'missing_contributors' => $incomplete,
+                ], 422);
+            }
+        }
+
         $team->update(['finished_at' => now()]);
         $team->refresh();
 
