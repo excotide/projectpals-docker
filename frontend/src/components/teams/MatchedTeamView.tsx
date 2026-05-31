@@ -785,6 +785,11 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                             </span>
                           )}
                         </div>
+                        {f.to_assigned_role && (
+                          <p className="text-[10px] text-slate-500 mb-1">
+                            dinilai sebagai <span className="text-blue-400">{f.to_assigned_role}</span>
+                          </p>
+                        )}
                         {f.content && f.content.trim() ? (
                           <p className="text-[12px] text-slate-200 whitespace-pre-wrap">{f.content}</p>
                         ) : (
@@ -990,9 +995,16 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               <h3 className="text-base font-bold text-slate-100 mb-2">
                 {existing ? "Edit Feedback" : "Beri Feedback"}
               </h3>
-              <p className="text-sm text-[#8892a4] mb-4">
-                Untuk <strong className="text-slate-200">{targetMemberForFb?.user?.name ?? "anggota"}</strong>
-              </p>
+              <div className="mb-4">
+                <p className="text-sm text-[#8892a4]">
+                  Untuk <strong className="text-slate-200">{targetMemberForFb?.user?.name ?? "anggota"}</strong>
+                </p>
+                {targetMemberForFb?.assigned_role && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Dinilai pada role <span className="text-blue-400 font-medium">{targetMemberForFb.assigned_role}</span>
+                  </p>
+                )}
+              </div>
               <div className="mb-4">
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-medium">Rating</label>
                 <div className="flex items-center gap-1">

@@ -24,9 +24,10 @@ class UpdateRoomRequest extends FormRequest
             'productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
             'environments' => ['sometimes', 'array', 'min:1', 'max:2'],
             'environments.*' => ['in:private,public,online,flexible'],
-            'max_per_group' => ['sometimes', 'integer', 'min:2', 'max:20'],
+            'max_members' => ['sometimes', 'integer', 'min:2', 'max:1000'],
+            'max_per_group' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'number_of_groups' => ['sometimes', 'integer', 'min:2', 'max:50'],
-            'status' => ['sometimes', 'in:open,matching,ongoing,closed'],
+            'status' => ['sometimes', 'in:open,matching,ongoing'],
         ];
     }
 
@@ -38,12 +39,18 @@ class UpdateRoomRequest extends FormRequest
             $payload['project_theme'] = $this->input('project_theme', $this->input('name'));
         }
 
-        if ($this->has('max_per_group') || $this->has('maxPerGroup')) {
-            $payload['max_per_group'] = $this->input('max_per_group', $this->input('maxPerGroup'));
+        if ($this->has('number_of_groups') || $this->has('numGroups')) {
+            $payload['number_of_groups'] = (int) $this->input('number_of_groups', $this->input('numGroups'));
         }
 
-        if ($this->has('number_of_groups') || $this->has('numGroups')) {
-            $payload['number_of_groups'] = $this->input('number_of_groups', $this->input('numGroups'));
+        // "Max member room" = total capacity. max_per_group is derived in the
+        // controller (after the room is loaded) so number_of_groups can fall back
+        // to the room's existing value when not sent in this request.
+        if ($this->has('max_members') || $this->has('maxMembers')) {
+            $payload['max_members'] = (int) $this->input('max_members', $this->input('maxMembers'));
+        } elseif ($this->has('max_per_group') || $this->has('maxPerGroup')) {
+            // Legacy direct per-group update (e.g. admin tools).
+            $payload['max_per_group'] = (int) $this->input('max_per_group', $this->input('maxPerGroup'));
         }
 
         $productivityWindows = $this->input('productivity_windows', $this->input('productivityWindows'));

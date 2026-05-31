@@ -23,6 +23,7 @@ type RoomItem = {
   productivity_windows?: string[];
   environments?: string[];
   max_per_group?: number;
+  max_members?: number;
   number_of_groups?: number;
   status?: string;
   created_at?: string;
@@ -111,7 +112,7 @@ function RoomCard({ room, onOpen }: { room: RoomItem; onOpen: () => void }) {
       </div>
 
       {/* Capacity */}
-      {(room.max_per_group || room.number_of_groups) && (
+      {((room.max_members ?? room.max_per_group) || room.number_of_groups) && (
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -119,11 +120,11 @@ function RoomCard({ room, onOpen }: { room: RoomItem; onOpen: () => void }) {
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          {room.max_per_group && <span>{room.max_per_group} per group</span>}
-          {room.max_per_group && room.number_of_groups && (
+          {(room.max_members ?? room.max_per_group) && <span>{room.max_members ?? room.max_per_group} max members</span>}
+          {(room.max_members ?? room.max_per_group) && room.number_of_groups && (
             <span className="text-slate-700">·</span>
           )}
-          {room.number_of_groups && <span>{room.number_of_groups} groups</span>}
+          {room.number_of_groups && <span>{room.number_of_groups} teams</span>}
         </div>
       )}
 
@@ -203,6 +204,7 @@ export default function MyRooms() {
     if (label === "Create Room") navigate("/create-room");
     if (label === "Join Room")   navigate("/join-room");
     if (label === "Profile")     navigate("/profile");
+    if (label === "History")     navigate("/history");
   };
 
   const handleLogout = async () => {

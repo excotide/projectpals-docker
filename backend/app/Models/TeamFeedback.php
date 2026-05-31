@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
  * @property int $team_id
  * @property int $from_room_member_id
  * @property int $to_room_member_id
+ * @property string|null $to_assigned_role
  * @property int|null $rating
  * @property string $content
  * @property Carbon|null $created_at
@@ -24,6 +25,7 @@ class TeamFeedback extends Model
         'team_id',
         'from_room_member_id',
         'to_room_member_id',
+        'to_assigned_role',
         'rating',
         'content',
     ];

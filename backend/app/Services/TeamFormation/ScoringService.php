@@ -12,11 +12,26 @@ final class ScoringService
 
     public const WEIGHT_EXPLORATION = 0.1;
 
+    /** Weight of cross-room feedback reputation on top of role affinity. */
+    public const WEIGHT_FEEDBACK = 0.3;
+
     public function score(array $member, string $role, array $room, int $totalPicks, int $rolePicks): float
     {
         return self::WEIGHT_ROLE_AFFINITY * $this->roleAffinity($member, $role)
             + self::WEIGHT_TIME_COMPATIBILITY * $this->timeCompatibility($member, $room)
             + self::WEIGHT_EXPLORATION * $this->explorationBonus($totalPicks, $rolePicks);
+    }
+
+    /**
+     * Score used by the cluster→assign pipeline: role affinity (primary / ordered
+     * backups) plus a feedback-reputation bonus so members with a good history in
+     * a role are prioritized for it. Primary (≥1.0) always outranks any backup
+     * (≤0.5 + 0.3 = 0.8); reputation only differentiates within the same tier.
+     */
+    public function roleScore(array $member, string $role): float
+    {
+        return $this->roleAffinity($member, $role)
+            + self::WEIGHT_FEEDBACK * $this->reputation($member, $role);
     }
 
     public function roleAffinity(array $member, string $role): float
@@ -26,12 +41,47 @@ final class ScoringService
             return 1.0;
         }
 
-        $backup = $member['backup_role'] ?? null;
-        if ($backup !== null && $backup === $role) {
-            return 0.5;
+        // Ordered backups: rank 0 → 0.5, rank 1 → 0.4, … floored at 0.1.
+        $backups = $this->backupList($member);
+        $index = \array_search($role, $backups, true);
+        if ($index !== false) {
+            return \max(0.5 - 0.1 * (int) $index, 0.1);
         }
 
         return 0.0;
+    }
+
+    /**
+     * Normalized cross-room reputation (0..1) for this member in the given role,
+     * from precomputed average ratings. No history → 0 (no boost, no penalty).
+     */
+    public function reputation(array $member, string $role): float
+    {
+        $map = $member['role_reputation'] ?? null;
+        if (! \is_array($map) || ! isset($map[$role])) {
+            return 0.0;
+        }
+
+        $avg = (float) $map[$role];
+
+        return \max(0.0, \min(1.0, $avg / 5.0));
+    }
+
+    /**
+     * Ordered backup roles, falling back to the legacy single `backup_role` string.
+     *
+     * @return array<int, string>
+     */
+    private function backupList(array $member): array
+    {
+        $backups = $member['backup_roles'] ?? null;
+        if (\is_array($backups) && $backups !== []) {
+            return \array_values(\array_filter($backups, static fn ($r) => \is_string($r) && $r !== ''));
+        }
+
+        $legacy = $member['backup_role'] ?? null;
+
+        return (\is_string($legacy) && $legacy !== '') ? [$legacy] : [];
     }
 
     public function timeCompatibility(array $member, array $room): float

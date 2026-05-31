@@ -17,7 +17,11 @@
       "Bash(php -l backend/routes/api.php)",
       "Bash(php -l backend/app/Models/TeamFeedback.php)",
       "Bash(php -l backend/app/Http/Controllers/Api/TeamFeedbackController.php)",
-      "Bash(php -l backend/app/Http/Controllers/Api/RoomController.php)"
+      "Bash(php -l backend/app/Http/Controllers/Api/RoomController.php)",
+      "Bash(php -l backend/app/Services/TeamFormation/SnakeDraftService.php)",
+      "Bash(php -l backend/app/Models/Room.php)",
+      "Bash(php -l backend/app/Http/Requests/CreateRoomRequest.php)",
+      "Bash(php -l backend/app/Http/Requests/UpdateRoomRequest.php)"
     ]
   }
 }

@@ -24,6 +24,8 @@ Route::prefix($adminPrefix !== '' ? $adminPrefix : 'pp-console')
             Route::get('/dev/users', [DevController::class, 'users']);
             Route::post('/dev/simulate-matching', [DevController::class, 'simulateMatching']);
             Route::post('/dev/create-room', [DevController::class, 'createRoom']);
+            Route::get('/dev/room-info', [DevController::class, 'roomInfo']);
+            Route::post('/dev/inject-members', [DevController::class, 'injectMembers']);
             Route::get('/dev/matched-rooms', [DevController::class, 'matchedRooms']);
         });
     });

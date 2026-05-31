@@ -112,7 +112,7 @@ export default function DetailOwnerRoom() {
     if (room && !editing) {
       setEditTheme(room.project_theme ?? "");
       setEditRoles((room.roles as string[]) ?? []);
-      setEditMax(room.max_per_group ?? 2);
+      setEditMax(room.max_members ?? 10);
       setEditGroups(room.number_of_groups ?? 2);
       setEditStatus((room.status as RoomStatus) ?? "open");
     }
@@ -130,6 +130,7 @@ export default function DetailOwnerRoom() {
     if (label === "Join Room")   navigate("/join-room");
     if (label === "My Rooms")    navigate("/my-rooms");
     if (label === "Profile")     navigate("/profile");
+    if (label === "History")     navigate("/history");
   };
 
   const handleLogout = async () => {
@@ -167,7 +168,7 @@ export default function DetailOwnerRoom() {
         roomCode,
         project_theme:    editTheme.trim(),
         roles:            editRoles,
-        max_per_group:    editMax,
+        max_members:      editMax,
         number_of_groups: editGroups,
         status:           editStatus,
       });
@@ -182,7 +183,7 @@ export default function DetailOwnerRoom() {
     if (!room) return;
     setEditTheme(room.project_theme ?? "");
     setEditRoles((room.roles as string[]) ?? []);
-    setEditMax(room.max_per_group ?? 2);
+    setEditMax(room.max_members ?? 10);
     setEditGroups(room.number_of_groups ?? 2);
     setEditStatus((room.status as RoomStatus) ?? "open");
     setEditing(false);
@@ -361,11 +362,11 @@ export default function DetailOwnerRoom() {
                           }
                         </div>
                       </InfoBlock>
-                      <InfoBlock label="Max Member per Group">
-                        <p className="text-sm text-slate-200">{room.max_per_group} members</p>
+                      <InfoBlock label="Max Member Room">
+                        <p className="text-sm text-slate-200">{room.max_members ?? room.max_per_group} members</p>
                       </InfoBlock>
-                      <InfoBlock label="Number of Groups">
-                        <p className="text-sm text-slate-200">{room.number_of_groups} groups</p>
+                      <InfoBlock label="Number of Teams">
+                        <p className="text-sm text-slate-200">{room.number_of_groups} teams</p>
                       </InfoBlock>
                       <InfoBlock label="Status">
                         <StatusPill status={room.status ?? ""} />
@@ -586,8 +587,8 @@ export default function DetailOwnerRoom() {
           <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
             <h3 className="text-base font-bold text-slate-100 mb-2">Start smart matching?</h3>
             <p className="text-sm text-[#8892a4] mb-5">
-              Form teams from <strong>{localMembers.length}</strong> members into <strong>{room?.number_of_groups}</strong> group(s)
-              of up to <strong>{room?.max_per_group}</strong> each. The room status will become <code>ongoing</code> and members will be
+              Form teams from <strong>{localMembers.length}</strong> members into <strong>{room?.number_of_groups}</strong> team(s)
+              (total capacity <strong>{room?.max_members ?? room?.max_per_group}</strong> members). The room status will become <code>ongoing</code> and members will be
               assigned to teams.
             </p>
             {matchErr && (
@@ -707,13 +708,13 @@ export default function DetailOwnerRoom() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Max Members per Group</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Max Member Room</label>
                 <input type="number" min={2} max={50} value={editMax} onChange={e => setEditMax(Math.max(2, Number(e.target.value)))}
                   className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors" />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Number of Groups</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Number of Teams</label>
                 <input type="number" min={2} max={100} value={editGroups} onChange={e => setEditGroups(Math.max(2, Number(e.target.value)))}
                   className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors" />
               </div>

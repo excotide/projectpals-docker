@@ -84,6 +84,61 @@ final class SnakeDraftService
             ];
         }
 
+        // Redistribution phase: nobody should be left hanging once teams exist.
+        // Each overflow member joins the smallest team (tie-break: lowest team number),
+        // so some teams will exceed max_per_group but everyone gets placed.
+        if ($unassigned !== []) {
+            $membersById = [];
+            foreach ($members as $m) {
+                $membersById[(int) $m['id']] = $m;
+            }
+
+            $overflow = $unassigned;   // already in draft order (score-sorted)
+            $unassigned = [];
+
+            foreach ($overflow as $memberId) {
+                $member = $membersById[$memberId] ?? null;
+                if ($member === null) {
+                    $unassigned[] = $memberId;   // safety net, should not happen
+                    continue;
+                }
+
+                $targetTeam = 1;
+                $minCount = \count($teams[1]);
+                for ($t = 2; $t <= $kTeams; $t++) {
+                    $c = \count($teams[$t]);
+                    if ($c < $minCount) {
+                        $minCount = $c;
+                        $targetTeam = $t;
+                    }
+                }
+
+                [$role, $score] = $this->bestRoleForMember($member, $roles, $room, $counters);
+
+                $teams[$targetTeam][] = [
+                    'member_id' => $memberId,
+                    'assigned_role' => $role,
+                    'score' => $score,
+                ];
+
+                $counters['N']++;
+                $counters['n'][$role] = ($counters['n'][$role] ?? 0) + 1;
+
+                $trace[] = [
+                    'pick' => $counters['N'],
+                    'team' => $targetTeam,
+                    'member_id' => $memberId,
+                    'role' => $role,
+                    'score' => $score,
+                    'overflow' => true,
+                    'counters_after' => [
+                        'N' => $counters['N'],
+                        'n' => $counters['n'],
+                    ],
+                ];
+            }
+        }
+
         return [
             'teams' => $teams,
             'unassigned' => $unassigned,

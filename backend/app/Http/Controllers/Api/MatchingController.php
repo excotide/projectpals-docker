@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Room;
 use App\Models\Team;
+use App\Models\TeamFeedback;
 use App\Models\TeamMember;
+use App\Models\RoomMember;
 use App\Services\TeamFormation\TeamFormationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,16 +59,7 @@ class MatchingController extends Controller
             ->when($assignedRoomMemberIds !== [], fn ($q) => $q->whereNotIn('id', $assignedRoomMemberIds))
             ->with('user')
             ->get()
-            ->map(fn ($rm) => [
-                'room_member_id' => $rm->id,
-                'primary_role'   => $rm->primary_role,
-                'backup_role'    => $rm->backup_role,
-                'user'           => $rm->user ? [
-                    'id'       => $rm->user->id,
-                    'name'     => $rm->user->name,
-                    'username' => $rm->user->username,
-                ] : null,
-            ])
+            ->map([$this, 'formatRoomMember'])
             ->values();
 
         return response()->json([
@@ -80,27 +73,7 @@ class MatchingController extends Controller
                     'max_per_group' => $room->max_per_group,
                     'number_of_groups' => $room->number_of_groups,
                 ],
-                'teams' => $teams->map(fn (Team $t) => [
-                    'id'           => $t->id,
-                    'team_number'  => $t->team_number,
-                    'project_name' => $t->project_name,
-                    'description'  => $t->description,
-                    'deadline'     => $t->deadline?->toIso8601String(),
-                    'finished_at'  => $t->finished_at?->toIso8601String(),
-                    'members'      => $t->members->map(fn ($tm) => [
-                        'room_member_id' => $tm->room_member_id,
-                        'assigned_role'  => $tm->assigned_role,
-                        'score'          => (float) $tm->score,
-                        'is_leader'      => (bool) $tm->is_leader,
-                        'primary_role'   => $tm->roomMember?->primary_role,
-                        'backup_role'    => $tm->roomMember?->backup_role,
-                        'user'           => $tm->roomMember && $tm->roomMember->user ? [
-                            'id'       => $tm->roomMember->user->id,
-                            'name'     => $tm->roomMember->user->name,
-                            'username' => $tm->roomMember->user->username,
-                        ] : null,
-                    ])->values(),
-                ])->values(),
+                'teams' => $teams->map([$this, 'formatTeam'])->values(),
                 'unassigned' => $unassigned,
             ],
         ]);
@@ -130,10 +103,39 @@ class MatchingController extends Controller
 
         $room->load('members');
 
-        if ($room->members->count() < 2) {
+        $roles = \is_array($room->roles) ? \array_values($room->roles) : [];
+        $roleCount = \count($roles);
+        $teamCount = (int) $room->number_of_groups;
+        $memberCount = $room->members->count();
+        $maxPerGroup = (int) $room->max_per_group;
+
+        if ($memberCount < 2) {
             return response()->json([
                 'success' => false,
                 'message' => 'Need at least 2 members to form teams.',
+            ], 422);
+        }
+
+        // Coverage feasibility: every team must be able to hold one member per role.
+        if ($roleCount < 1 || $teamCount < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Room belum memiliki role atau jumlah team yang valid.',
+            ], 422);
+        }
+
+        if ($maxPerGroup < $roleCount) {
+            return response()->json([
+                'success' => false,
+                'message' => "Kapasitas per team ({$maxPerGroup}) lebih kecil dari jumlah role ({$roleCount}). Naikkan Max member room atau kurangi jumlah team/role.",
+            ], 422);
+        }
+
+        if ($memberCount < $teamCount * $roleCount) {
+            $needed = $teamCount * $roleCount;
+            return response()->json([
+                'success' => false,
+                'message' => "Butuh minimal {$needed} anggota ({$teamCount} team × {$roleCount} role) agar semua role tercover di setiap team. Saat ini {$memberCount} anggota.",
             ], 422);
         }
 
@@ -141,17 +143,23 @@ class MatchingController extends Controller
 
         try {
             $roomArr = [
-                'roles' => \is_array($room->roles) ? $room->roles : [],
+                'roles' => $roles,
                 'productivity_windows' => \is_array($room->productivity_windows) ? $room->productivity_windows : [],
-                'max_per_group' => (int) $room->max_per_group,
-                'number_of_groups' => (int) $room->number_of_groups,
+                'environments' => \is_array($room->environments) ? $room->environments : [],
+                'max_per_group' => $maxPerGroup,
+                'number_of_groups' => $teamCount,
             ];
 
-            $membersArr = $room->members->map(fn ($m) => [
+            $reputation = $this->roleReputationMap($room->members->pluck('user_id')->map(fn ($id) => (int) $id)->all());
+
+            $membersArr = $room->members->map(fn (RoomMember $m) => [
                 'id' => (int) $m->id,
                 'primary_role' => $m->primary_role,
                 'backup_role' => $m->backup_role,
+                'backup_roles' => \is_array($m->backup_roles) ? $m->backup_roles : [],
                 'productivity_windows' => \is_array($m->productivity_windows) ? $m->productivity_windows : [],
+                'environments' => \is_array($m->environments) ? $m->environments : [],
+                'role_reputation' => $reputation[(int) $m->user_id] ?? [],
             ])->all();
 
             $out = $this->formation->form($membersArr, $roomArr);
@@ -181,13 +189,13 @@ class MatchingController extends Controller
                         continue;
                     }
 
-                    $primaryMatchers = array_values(array_filter($created, function ($entry) use ($roomMembersById) {
+                    $primaryMatchers = array_values(array_filter($created, function (array $entry) use ($roomMembersById): bool {
                         $rm = $roomMembersById[$entry['pick']['member_id']] ?? null;
                         return $rm && $entry['pick']['assigned_role'] === $rm->primary_role;
                     }));
 
                     $pool = $primaryMatchers !== [] ? $primaryMatchers : $created;
-                    usort($pool, fn ($a, $b) => $b['pick']['score'] <=> $a['pick']['score']);
+                    usort($pool, fn (array $a, array $b): int => $b['pick']['score'] <=> $a['pick']['score']);
                     $pool[0]['tm']->update(['is_leader' => true]);
                 }
 
@@ -217,29 +225,94 @@ class MatchingController extends Controller
             'success' => true,
             'message' => 'Teams formed.',
             'data' => [
-                'teams' => $teams->map(fn (Team $t) => [
-                    'id'           => $t->id,
-                    'team_number'  => $t->team_number,
-                    'project_name' => $t->project_name,
-                    'description'  => $t->description,
-                    'deadline'     => $t->deadline?->toIso8601String(),
-                    'finished_at'  => $t->finished_at?->toIso8601String(),
-                    'members' => $t->members->map(fn ($tm) => [
-                        'room_member_id' => $tm->room_member_id,
-                        'assigned_role' => $tm->assigned_role,
-                        'score' => (float) $tm->score,
-                        'is_leader' => (bool) $tm->is_leader,
-                        'user' => $tm->roomMember && $tm->roomMember->user ? [
-                            'id' => $tm->roomMember->user->id,
-                            'name' => $tm->roomMember->user->name,
-                            'username' => $tm->roomMember->user->username,
-                        ] : null,
-                    ])->values(),
-                ])->values(),
+                'teams' => $teams->map([$this, 'formatTeam'])->values(),
                 'unassigned' => $out['unassigned'],
                 'meta' => $out['meta'],
             ],
         ]);
+    }
+
+    /**
+     * Cross-room feedback reputation: average rating each user has received per
+     * assigned role, across all teams/rooms. Used to prioritize role assignment.
+     *
+     * @param  array<int, int>  $userIds
+     * @return array<int, array<string, float>>  [user_id][role] => avg rating (1-5)
+     */
+    private function roleReputationMap(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $rows = TeamFeedback::query()
+            ->join('room_members', 'team_feedbacks.to_room_member_id', '=', 'room_members.id')
+            ->whereNotNull('team_feedbacks.to_assigned_role')
+            ->whereNotNull('team_feedbacks.rating')
+            ->whereIn('room_members.user_id', $userIds)
+            ->groupBy('room_members.user_id', 'team_feedbacks.to_assigned_role')
+            ->selectRaw('room_members.user_id as user_id, team_feedbacks.to_assigned_role as role, AVG(team_feedbacks.rating) as avg_rating')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row->user_id][(string) $row->role] = (float) $row->avg_rating;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Format a Team for API response.
+     */
+    public function formatTeam(Team $t): array
+    {
+        return [
+            'id'           => $t->id,
+            'team_number'  => $t->team_number,
+            'project_name' => $t->project_name,
+            'description'  => $t->description,
+            'deadline'     => $t->deadline?->toIso8601String(),
+            'finished_at'  => $t->finished_at?->toIso8601String(),
+            'members'      => $t->members->map([$this, 'formatTeamMember'])->values(),
+        ];
+    }
+
+    /**
+     * Format a TeamMember for API response.
+     */
+    public function formatTeamMember(TeamMember $tm): array
+    {
+        return [
+            'room_member_id' => $tm->room_member_id,
+            'assigned_role'  => $tm->assigned_role,
+            'score'          => (float) $tm->score,
+            'is_leader'      => (bool) $tm->is_leader,
+            'primary_role'   => $tm->roomMember?->primary_role,
+            'backup_role'    => $tm->roomMember?->backup_role,
+            'user'           => $tm->roomMember && $tm->roomMember->user ? [
+                'id'       => $tm->roomMember->user->id,
+                'name'     => $tm->roomMember->user->name,
+                'username' => $tm->roomMember->user->username,
+            ] : null,
+        ];
+    }
+
+    /**
+     * Format an unassigned RoomMember for API response.
+     */
+    public function formatRoomMember(RoomMember $rm): array
+    {
+        return [
+            'room_member_id' => $rm->id,
+            'primary_role'   => $rm->primary_role,
+            'backup_role'    => $rm->backup_role,
+            'user'           => $rm->user ? [
+                'id'       => $rm->user->id,
+                'name'     => $rm->user->name,
+                'username' => $rm->user->username,
+            ] : null,
+        ];
     }
 
     public function updateTeam(Request $request, Team $team): JsonResponse

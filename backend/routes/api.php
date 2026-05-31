@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\MatchingController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamFeedbackController;
 use App\Http\Controllers\Api\TeamTargetController;
@@ -18,6 +20,7 @@ Route::prefix('auth')->group(function (): void {
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {
+    Route::get('/history/teams', [HistoryController::class, 'teams']);
     Route::get('/rooms/my-rooms', [RoomController::class, 'myRooms']);
     Route::get('/rooms/{roomCode}/join-preview', [RoomController::class, 'previewForJoin']);
     Route::get('/rooms/{roomCode}/members', [RoomController::class, 'members']);
@@ -43,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/teams/{team}/feedbacks', [TeamFeedbackController::class, 'store']);
     Route::post('/rooms/join', [RoomController::class, 'join']);
     Route::post('/rooms', [RoomController::class, 'store']);
+    Route::post('/normalize-role', [RoleController::class, 'normalize']);
 });
 
 require __DIR__.'/admin_api.php';

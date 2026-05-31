@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l backend/app/Http/Controllers/Admin/DevController.php)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(php -l backend/routes/admin_api.php)",
+      "Bash(ls -la .env .env.example)",
+      "Bash(grep -n \"GROQ\" .env .env.example)",
+      "Bash(php -l app/Models/RoomMember.php)",
+      "Bash(php -l app/Http/Requests/JoinRoomRequest.php)",
+      "Bash(php -l app/Http/Controllers/Api/RoomController.php)",
+      "Bash(php -l database/migrations/2026_05_31_000002_add_environments_to_room_members.php)",
+      "Bash(php -l app/Http/Controllers/Admin/DevController.php)"
+    ]
+  }
+}

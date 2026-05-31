@@ -6,6 +6,7 @@ export interface Room {
   room_code?: string
   project_theme?: string
   max_per_group?: number
+  max_members?: number
   status?: string
   [key: string]: unknown
 }
@@ -38,11 +39,15 @@ export interface RoomDetailResponse {
 export interface CreateRoomPayload {
   project_theme?: string
   max_per_group?: number
+  max_members?: number
   number_of_groups?: number
   name?: string
   roles?: string[]
   maxPerGroup?: number
+  maxMembers?: number
   numGroups?: number
+  createRoomOnly?: boolean
+  create_room_only?: boolean
   [key: string]: unknown
 }
 
@@ -50,7 +55,9 @@ export interface JoinRoomPayload {
   room_code?: string
   primary_role?: string
   backup_role?: string
+  backup_roles?: string[]
   productivity_windows?: string[]
+  environments?: string[]
   group_name?: string
   [key: string]: unknown
 }
@@ -67,8 +74,9 @@ export interface JoinPreviewResponse {
 export interface FinalizeJoinPayload {
   roomCode: string
   primaryRole?: string
-  backupRole?: string
+  backupRoles?: string[]
   productivityWindows: string[]
+  environments: string[]
 }
 
 export interface FinalizeJoinResult {
@@ -87,7 +95,7 @@ export interface UpdateRoomPayload {
   roomCode: string
   project_theme: string
   roles: string[]
-  max_per_group: number
+  max_members: number
   number_of_groups: number
   status: RoomStatus
 }
@@ -241,7 +249,9 @@ export interface RoomMemberItem {
   joined_at: string | null
   primary_role: string | null
   backup_role: string | null
+  backup_roles: string[] | null
   productivity_windows: string[] | null
+  environments: string[] | null
   user: RoomMemberUser | null
 }
 
@@ -253,6 +263,26 @@ export interface RoomMembersResponse {
     status: string
   }
   members: RoomMemberItem[]
+}
+
+export interface TeamHistoryItem {
+  team_id: number | string
+  team_number: number
+  status: string
+  finished_at: string | null
+  average_rating: number | null
+  feedback_count: number
+  my_room_member_id: number | string | null
+  room: {
+    id: number | string | null
+    room_code: string | null
+    project_theme: string | null
+    status: string | null
+  }
+}
+
+export interface TeamHistoryResponse {
+  items: TeamHistoryItem[]
 }
 
 const roomKeys = {
@@ -269,6 +299,7 @@ const roomKeys = {
   feedbacksGiven: (teamId: number | string) => [...roomKeys.all, 'feedbacks-given', String(teamId)] as const,
   feedbacksReceived: (teamId: number | string, roomMemberId: number | string) =>
     [...roomKeys.all, 'feedbacks-received', String(teamId), String(roomMemberId)] as const,
+  history: () => [...roomKeys.all, 'history'] as const,
 }
 
 export function useRooms() {
@@ -653,6 +684,7 @@ export interface TeamFeedback {
   team_id: number | string
   from_room_member_id: number | string
   to_room_member_id: number | string
+  to_assigned_role?: string | null
   rating: number | null
   content: string
   created_at: string | null
@@ -696,6 +728,16 @@ export function useFeedbacksReceived(
       return response.data
     },
     enabled: Boolean(teamId) && Boolean(roomMemberId) && (options?.enabled ?? true),
+  })
+}
+
+export function useTeamHistory() {
+  return useQuery({
+    queryKey: roomKeys.history(),
+    queryFn: async () => {
+      const response = await apiGet<TeamHistoryItem[]>('/history/teams')
+      return response.data
+    },
   })
 }
 

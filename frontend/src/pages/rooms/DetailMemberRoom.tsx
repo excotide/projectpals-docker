@@ -9,6 +9,7 @@ import {
   useRoomTeams,
   type RoomMemberItem,
 } from "../../hooks/useRooms";
+import { toggleFlexible } from "../../lib/flexibleSelection";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
@@ -47,8 +48,11 @@ function getRoleStyle(role: string | null | undefined, allRoles: string[]) {
   return ROLE_PALETTE[(idx >= 0 ? idx : 0) % ROLE_PALETTE.length];
 }
 
-// Standard productivity windows (lowercase = API format)
+// Standard option sets (lowercase = API format). "flexible" is mutually exclusive.
 const STANDARD_WINDOWS = ["morning", "afternoon", "evening", "flexible"];
+const STANDARD_ENVS = ["private", "public", "online", "flexible"];
+const WINDOW_REALS = ["morning", "afternoon", "evening"];
+const ENV_REALS = ["private", "public", "online"];
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -111,9 +115,11 @@ function MemberRow({ member, allRoles }: { member: RoomMemberItem; allRoles: str
 function EditProfileModal({
   roomRoles,
   windowOptions,
+  envOptions,
   initialPrimary,
   initialBackups,
   initialWindows,
+  initialEnvironments,
   saving,
   error,
   onSave,
@@ -121,18 +127,21 @@ function EditProfileModal({
 }: {
   roomRoles: string[];
   windowOptions: string[];
+  envOptions: string[];
   initialPrimary: string;
   initialBackups: string[];
   initialWindows: string[];
+  initialEnvironments: string[];
   saving: boolean;
   error: string;
-  onSave: (primary: string, backups: string[], windows: string[]) => void;
+  onSave: (primary: string, backups: string[], windows: string[], environments: string[]) => void;
   onClose: () => void;
 }) {
   const [primary, setPrimary] = useState(initialPrimary);
   // All non-primary roles are pre-selected as backup
   const [backups,  setBackups]  = useState<string[]>(initialBackups);
   const [windows, setWindows]   = useState<string[]>(initialWindows);
+  const [envs, setEnvs]         = useState<string[]>(initialEnvironments);
 
   // When primary changes, reset backups to all remaining roles
   const handlePrimaryChange = (role: string) => {
@@ -146,7 +155,10 @@ function EditProfileModal({
     );
 
   const toggleWindow = (w: string) =>
-    setWindows(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w]);
+    setWindows(prev => toggleFlexible(prev, w, { flex: "flexible", reals: WINDOW_REALS }));
+
+  const toggleEnv = (e: string) =>
+    setEnvs(prev => toggleFlexible(prev, e, { flex: "flexible", reals: ENV_REALS }));
 
   const remainingRoles = roomRoles.filter(r => r !== primary);
   // Backup required only when the room has more than one role
@@ -154,7 +166,8 @@ function EditProfileModal({
   const canSave =
     primary.trim().length > 0 &&
     (!backupRequired || backups.length > 0) &&
-    windows.length > 0;
+    windows.length > 0 &&
+    envs.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -236,11 +249,12 @@ function EditProfileModal({
                 </span>
               </div>
               <p className="text-[11px] text-[#4a5568] mb-3">
-                Select all roles you can handle as backups.
+                Pilih backup berurutan — urutan menentukan prioritas (backup 1 lebih diutamakan).
               </p>
               <div className="space-y-2">
                 {remainingRoles.map(role => {
-                  const checked = backups.includes(role);
+                  const backupRank = backups.indexOf(role);
+                  const checked = backupRank >= 0;
                   return (
                     <label
                       key={role}
@@ -259,7 +273,9 @@ function EditProfileModal({
                       <div className="flex-1 flex items-center justify-between">
                         <span className="text-sm text-slate-200">{role}</span>
                         {checked && (
-                          <span className="text-[10px] text-green-400 font-semibold">Backup</span>
+                          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">
+                            Backup {backupRank + 1}
+                          </span>
                         )}
                       </div>
                     </label>
@@ -307,6 +323,39 @@ function EditProfileModal({
             </div>
           </div>
 
+          {/* ── Work Environment ─────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-semibold text-[#4a5568] uppercase tracking-widest">
+                Work Environment
+              </p>
+              <span className="text-[10px] text-red-400 font-semibold">Pick 1+ required</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {envOptions.map(e => {
+                const checked = envs.includes(e);
+                return (
+                  <label
+                    key={e}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all"
+                    style={{
+                      borderColor: checked ? "#3b82f6" : "#1e2530",
+                      background:  checked ? "rgba(59,130,246,0.08)" : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleEnv(e)}
+                      className="accent-blue-500 w-4 h-4 shrink-0"
+                    />
+                    <span className="text-sm text-slate-200">{capitalize(e)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Error */}
           {error && (
             <p className="text-red-400 text-[13px] bg-[#1f0a0a] border border-red-500/50 rounded-lg px-3 py-2">
@@ -324,7 +373,7 @@ function EditProfileModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave(primary, backups, windows)}
+            onClick={() => onSave(primary, backups, windows, envs)}
             disabled={!canSave || saving}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
           >
@@ -362,11 +411,9 @@ export default function DetailMemberRoom() {
   const members   = membersQuery.data?.members ?? [];
   const allRoles  = useMemo(() => (room?.roles ?? []) as string[], [room]);
 
-  // Window options: from room's productivity_windows, fallback to standard list
-  const windowOptions = useMemo(() => {
-    const raw = (room?.productivity_windows as string[] | undefined) ?? [];
-    return raw.length > 0 ? raw : STANDARD_WINDOWS;
-  }, [room]);
+  // Members may pick from the full standard option sets (all available by default).
+  const windowOptions = STANDARD_WINDOWS;
+  const envOptions = STANDARD_ENVS;
 
   // Find the current user's own membership record
   const myRecord = useMemo(() =>
@@ -393,6 +440,7 @@ export default function DetailMemberRoom() {
     if (label === "Join Room")   navigate("/join-room");
     if (label === "My Rooms")    navigate("/my-rooms");
     if (label === "Profile")     navigate("/profile");
+    if (label === "History")     navigate("/history");
   };
 
   const handleLogout = async () => {
@@ -402,7 +450,7 @@ export default function DetailMemberRoom() {
     finally { navigate("/login", { replace: true }); setLoggingOut(false); }
   };
 
-  const handleSaveProfile = async (primary: string, backups: string[], windows: string[]) => {
+  const handleSaveProfile = async (primary: string, backups: string[], windows: string[], environments: string[]) => {
     if (!roomCode) return;
     setSaveError("");
     try {
@@ -410,8 +458,9 @@ export default function DetailMemberRoom() {
         roomId: roomCode,
         payload: {
           primary_role:         primary,
-          backup_role:          backups.length > 0 ? backups.join(", ") : undefined,
+          backup_roles:         backups,
           productivity_windows: windows,
+          environments,
         },
       });
       await membersQuery.refetch();
@@ -498,11 +547,11 @@ export default function DetailMemberRoom() {
                         }
                       </div>
                     </InfoBlock>
-                    <InfoBlock label="Max Members per Group">
-                      <p className="text-sm text-slate-200">{room.max_per_group} members</p>
+                    <InfoBlock label="Max Member Room">
+                      <p className="text-sm text-slate-200">{room.max_members ?? room.max_per_group} members</p>
                     </InfoBlock>
-                    <InfoBlock label="Number of Groups">
-                      <p className="text-sm text-slate-200">{room.number_of_groups} groups</p>
+                    <InfoBlock label="Number of Teams">
+                      <p className="text-sm text-slate-200">{room.number_of_groups} teams</p>
                     </InfoBlock>
                     <InfoBlock label="Productivity Windows">
                       <p className="text-sm text-slate-200">
@@ -736,13 +785,17 @@ export default function DetailMemberRoom() {
         <EditProfileModal
           roomRoles={allRoles}
           windowOptions={windowOptions}
+          envOptions={envOptions}
           initialPrimary={myRecord?.primary_role ?? ""}
           initialBackups={
-            myRecord?.backup_role
-              ? myRecord.backup_role.split(", ").filter(Boolean)
-              : allRoles.filter(r => r !== myRecord?.primary_role)
+            Array.isArray(myRecord?.backup_roles) && myRecord.backup_roles.length > 0
+              ? myRecord.backup_roles
+              : myRecord?.backup_role
+                ? myRecord.backup_role.split(", ").filter(Boolean)
+                : allRoles.filter(r => r !== myRecord?.primary_role)
           }
           initialWindows={myRecord?.productivity_windows ?? []}
+          initialEnvironments={myRecord?.environments ?? []}
           saving={joinMutation.isPending}
           error={saveError}
           onSave={handleSaveProfile}

@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  * @property array $productivity_windows
  * @property array $environments
  * @property int $max_per_group
+ * @property int $max_members
  * @property int $number_of_groups
  * @property string $status
  * @property Carbon|null $created_at
@@ -32,6 +33,7 @@ class Room extends Model
         'productivity_windows',
         'environments',
         'max_per_group',
+        'max_members',
         'number_of_groups',
         'status',
     ];
@@ -40,6 +42,9 @@ class Room extends Model
         'roles' => 'array',
         'productivity_windows' => 'array',
         'environments' => 'array',
+        'max_per_group' => 'integer',
+        'max_members' => 'integer',
+        'number_of_groups' => 'integer',
     ];
 
     public static function generateUniqueCode(): string

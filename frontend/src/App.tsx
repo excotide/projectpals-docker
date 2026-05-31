@@ -5,6 +5,7 @@ import CreateRoom from "./pages/rooms/CreateRoom"
 import JoinRoom from "./pages/rooms/JoinRoom"
 import LandingPage from "./pages/landing/LandingPage"
 import Dashboard from "./pages/dashboard/Dashboard"
+import HistoryPage from "./pages/history/HistoryPage"
 import MyRooms from "./pages/rooms/MyRooms"
 import RoomDetailRouter from "./pages/rooms/RoomDetailRouter"
 import MatchedRoomOverview from "./pages/rooms/MatchedRoomOverview"
@@ -63,6 +64,14 @@ export default function App() {
           element={(
             <RequireAuth>
               <MyRooms />
+            </RequireAuth>
+          )}
+        />
+        <Route
+          path="/history"
+          element={(
+            <RequireAuth>
+              <HistoryPage />
             </RequireAuth>
           )}
         />

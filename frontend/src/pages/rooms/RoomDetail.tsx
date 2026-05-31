@@ -133,7 +133,7 @@ export default function RoomDetail() {
         roomCode,
         project_theme: formData.project_theme.trim(),
         roles: parsedRoles,
-        max_per_group: Number(formData.max_per_group),
+        max_members: Number(formData.max_per_group) * Number(formData.number_of_groups),
         number_of_groups: Number(formData.number_of_groups),
         status: formData.status,
       });

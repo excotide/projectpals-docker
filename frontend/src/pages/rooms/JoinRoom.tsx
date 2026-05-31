@@ -3,24 +3,27 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useFinalizeJoinRoom, useJoinRoomPreview } from "../../hooks/useRooms";
+import { toggleFlexible } from "../../lib/flexibleSelection";
+import {
+  PRODUCTIVITY_SLOTS,
+  WORK_ENV_SLOTS,
+  TIME_FLEX,
+  TIME_REALS,
+  ENV_FLEX,
+  ENV_REALS,
+  toWindowValue,
+  toEnvValue,
+} from "../../lib/preferences";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
 type Step = "landing" | "role" | "hours" | "success" | "invalid";
-type RoleType = "primary" | "backup";
 
 interface Role {
   id: string;
   name: string;
   sub: string;
   icon: ReactNode;
-}
-
-interface TimeSlot {
-  id: string;
-  short: string;
-  name: string;
-  range: string;
 }
 
 const ROLE_ICONS: ReactNode[] = [
@@ -42,14 +45,6 @@ const ROLE_ICONS: ReactNode[] = [
   ),
 ];
 
-const times: TimeSlot[] = [
-  { id: "mor", short: "AM",  name: "Morning",   range: "6AM – 12PM" },
-  { id: "aft", short: "PM",  name: "Afternoon", range: "12PM – 6PM" },
-  { id: "eve", short: "EVE", name: "Evening",   range: "6PM – 12AM" },
-  { id: "fle", short: "ALL", name: "Flexible",  range: "Anytime"    },
-];
-
-const ROLE_TYPES: RoleType[] = ["primary", "backup"];
 const TOTAL_STEPS = 3;
 
 const STEP_MAP: Partial<Record<Step, number>> = {
@@ -70,8 +65,10 @@ export default function JoinRoom() {
   const logoutMutation = useLogout();
   const [step, setStep] = useState<Step>("landing");
   const [code, setCode] = useState("");
-  const [roleType, setRoleType] = useState<Record<string, RoleType>>({});
+  const [primaryRoleId, setPrimaryRoleId] = useState<string>("");
+  const [backupRoleIds, setBackupRoleIds] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [selectedEnvs, setSelectedEnvs] = useState<string[]>([]);
   const [roomRoles, setRoomRoles] = useState<Role[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -109,8 +106,10 @@ export default function JoinRoom() {
         icon: ROLE_ICONS[index % ROLE_ICONS.length],
       }));
 
-      setRoleType({});
+      setPrimaryRoleId("");
+      setBackupRoleIds([]);
       setSelectedTimes([]);
+      setSelectedEnvs([]);
       setRoomRoles(mappedRoles);
       go("role");
     } catch (error) {
@@ -121,28 +120,25 @@ export default function JoinRoom() {
     }
   };
 
-  const toWindowValue = (timeId: string): string | null => {
-    const map: Record<string, string> = { mor: "morning", aft: "afternoon", eve: "evening", fle: "flexible" };
-    return map[timeId] ?? null;
-  };
-
   const handleJoinRoom = async () => {
-    if (submitting || selectedTimes.length === 0) return;
+    if (submitting || selectedTimes.length === 0 || selectedEnvs.length === 0) return;
     const token = localStorage.getItem("token");
     if (!token) { navigate("/login", { replace: true }); return; }
 
-    const primaryRoleId = Object.keys(roleType).find((id) => roleType[id] === "primary");
-    const backupRoleId = Object.keys(roleType).find((id) => roleType[id] === "backup");
     const windows = selectedTimes.map(toWindowValue).filter((v): v is string => v !== null);
+    const environments = selectedEnvs.map(toEnvValue).filter((v): v is string => v !== null);
+    const nameOf = (id: string) => roomRoles.find((r) => r.id === id)?.name;
+    const backupRoles = backupRoleIds.map(nameOf).filter((v): v is string => v !== undefined);
 
     setSubmitting(true);
     setErrorMessage("");
     try {
       await finalizeJoinMutation.mutateAsync({
         roomCode: code.trim().toUpperCase(),
-        primaryRole: roomRoles.find((r) => r.id === primaryRoleId)?.name,
-        backupRole: roomRoles.find((r) => r.id === backupRoleId)?.name,
+        primaryRole: nameOf(primaryRoleId),
+        backupRoles,
         productivityWindows: windows,
+        environments,
       });
       go("success");
     } catch (error) {
@@ -152,33 +148,38 @@ export default function JoinRoom() {
     }
   };
 
-  const assignRole = (id: string, type: RoleType) => {
-    setRoleType((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((k) => { if (next[k] === type) delete next[k]; });
-      if (next[id] === type) delete next[id];
-      else next[id] = type;
-      return next;
-    });
+  // Primary is single; selecting it clears it from backups. Re-clicking deselects.
+  const setPrimary = (id: string) => {
+    setPrimaryRoleId((prev) => (prev === id ? "" : id));
+    setBackupRoleIds((prev) => prev.filter((b) => b !== id));
+  };
+
+  // Backups are an ordered list (click order = rank). Re-clicking removes & re-ranks.
+  const toggleBackup = (id: string) => {
+    setPrimaryRoleId((prev) => (prev === id ? "" : prev));
+    setBackupRoleIds((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
   };
 
   const toggleTime = (id: string) => {
-    setSelectedTimes((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : prev.length < 2 ? [...prev, id] : prev
-    );
+    setSelectedTimes((prev) => toggleFlexible(prev, id, { flex: TIME_FLEX, reals: TIME_REALS }));
+  };
+
+  const toggleEnv = (id: string) => {
+    setSelectedEnvs((prev) => toggleFlexible(prev, id, { flex: ENV_FLEX, reals: ENV_REALS }));
   };
 
   const reset = () => {
     setStep("landing");
     setCode("");
-    setRoleType({});
+    setPrimaryRoleId("");
+    setBackupRoleIds([]);
     setSelectedTimes([]);
+    setSelectedEnvs([]);
     setRoomRoles([]);
     setErrorMessage("");
   };
 
-  const canProceedRole =
-    Object.values(roleType).includes("primary") && Object.values(roleType).includes("backup");
+  const canProceedRole = primaryRoleId !== "" && backupRoleIds.length > 0;
 
   const initials = useMemo(() => {
     if (!user?.name) return "U";
@@ -195,6 +196,7 @@ export default function JoinRoom() {
     if (label === "Join Room") navigate("/join-room");
     if (label === "My Rooms") navigate("/my-rooms");
     if (label === "Profile") navigate("/profile");
+    if (label === "History") navigate("/history");
   };
 
   const handleLogout = async () => {
@@ -370,79 +372,123 @@ export default function JoinRoom() {
           <div className="flex flex-col gap-4">
             <div>
               <h3 className="m-0 text-[18px] font-semibold text-slate-100">Choose Your Role</h3>
-              <p className="m-0 mt-1 text-[13px] text-slate-500">Select one primary and one backup role.</p>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">
+                Pilih 1 primary dan beberapa backup berurutan. Urutan backup menentukan prioritas (backup 1 lebih diutamakan dari backup 2).
+              </p>
             </div>
             <div className="flex flex-col gap-3">
-              {roomRoles.map((r) => (
-                <div
-                  key={r.id}
-                  className={`flex items-center justify-between border rounded-xl p-4 transition-colors ${
-                    roleType[r.id]
-                      ? "border-blue-500/50 bg-blue-500/5"
-                      : "border-pp-border bg-pp-elevated"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
-                      {r.icon}
+              {roomRoles.map((r) => {
+                const isPrimary = primaryRoleId === r.id;
+                const backupRank = backupRoleIds.indexOf(r.id);
+                const isBackup = backupRank >= 0;
+                return (
+                  <div
+                    key={r.id}
+                    className={`flex items-center justify-between border rounded-xl p-4 transition-colors ${
+                      isPrimary || isBackup ? "border-blue-500/50 bg-blue-500/5" : "border-pp-border bg-pp-elevated"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                        {r.icon}
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-semibold text-slate-100">{r.name}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{r.sub}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[13px] font-semibold text-slate-100">{r.name}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{r.sub}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {ROLE_TYPES.map((type) => (
+                    <div className="flex gap-2">
                       <button
-                        key={type}
-                        onClick={() => assignRole(r.id, type)}
+                        onClick={() => setPrimary(r.id)}
                         className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
-                          roleType[r.id] === type
-                            ? type === "primary"
-                              ? "bg-blue-500 text-white"
-                              : "bg-indigo-500 text-white"
-                            : "bg-pp-border text-slate-400 hover:text-slate-200"
+                          isPrimary ? "bg-blue-500 text-white" : "bg-pp-border text-slate-400 hover:text-slate-200"
                         }`}
                       >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                        Primary
                       </button>
-                    ))}
+                      <button
+                        onClick={() => toggleBackup(r.id)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 ${
+                          isBackup ? "bg-indigo-500 text-white" : "bg-pp-border text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Backup
+                        {isBackup && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/25 text-[10px] font-bold">
+                            {backupRank + 1}
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
         {step === "hours" && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <div>
               <h3 className="m-0 text-[18px] font-semibold text-slate-100">Peak Kinetic Window</h3>
-              <p className="m-0 mt-1 text-[13px] text-slate-500">Pick up to 2 time slots for matching.</p>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">
+                Pilih hingga 2 slot waktu. Pilih ketiganya untuk otomatis jadi <span className="text-blue-400">Flexible</span>.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {PRODUCTIVITY_SLOTS.map((t) => {
+                  const active = selectedTimes.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => toggleTime(t.id)}
+                      className={`text-left border rounded-xl px-4 py-3 transition-colors ${
+                        active
+                          ? "border-blue-500/50 bg-blue-500/5"
+                          : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
+                      }`}
+                    >
+                      <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">
+                        {t.short}
+                      </div>
+                      <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>
+                        {t.name}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{t.range}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {times.map((t) => {
-                const active = selectedTimes.includes(t.id);
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => toggleTime(t.id)}
-                    className={`text-left border rounded-xl px-4 py-3 transition-colors ${
-                      active
-                        ? "border-blue-500/50 bg-blue-500/5"
-                        : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
-                    }`}
-                  >
-                    <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">
-                      {t.short}
-                    </div>
-                    <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>
-                      {t.name}
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{t.range}</div>
-                  </button>
-                );
-              })}
+
+            <div>
+              <h3 className="m-0 text-[18px] font-semibold text-slate-100">Work Environment</h3>
+              <p className="m-0 mt-1 text-[13px] text-slate-500">
+                Pilih hingga 2 preferensi. Pilih ketiganya untuk otomatis jadi <span className="text-blue-400">Flexible</span>.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {WORK_ENV_SLOTS.map((e) => {
+                  const active = selectedEnvs.includes(e.id);
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => toggleEnv(e.id)}
+                      className={`text-left border rounded-xl px-4 py-3 transition-colors ${
+                        active
+                          ? "border-blue-500/50 bg-blue-500/5"
+                          : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
+                      }`}
+                    >
+                      <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">
+                        {e.short}
+                      </div>
+                      <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>
+                        {e.name}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{e.range}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -459,14 +505,14 @@ export default function JoinRoom() {
               submitting ||
               (step === "landing" && code.trim().length !== 6) ||
               (step === "role" && !canProceedRole) ||
-              (step === "hours" && selectedTimes.length === 0)
+              (step === "hours" && (selectedTimes.length === 0 || selectedEnvs.length === 0))
             }
             style={{
               opacity:
                 submitting ||
                 (step === "landing" && code.trim().length !== 6) ||
                 (step === "role" && !canProceedRole) ||
-                (step === "hours" && selectedTimes.length === 0)
+                (step === "hours" && (selectedTimes.length === 0 || selectedEnvs.length === 0))
                   ? 0.5
                   : 1,
             }}

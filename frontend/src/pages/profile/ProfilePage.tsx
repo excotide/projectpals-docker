@@ -5,7 +5,7 @@ import { useMyRooms } from "../../hooks/useRooms";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
-type RoomStatus = "open" | "matching" | "ongoing";
+type RoomStatus = "open" | "matching" | "ongoing" | "closed";
 
 type RoomItem = {
   id: number | string;
@@ -84,6 +84,7 @@ export default function ProfilePage() {
     if (label === "Join Room") navigate("/join-room");
     if (label === "My Rooms") navigate("/my-rooms");
     if (label === "Profile") navigate("/profile");
+    if (label === "History") navigate("/history");
   };
 
   const handleLogout = async () => {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { adminApi } from "../../lib/adminApi"
+import { toggleFlexible } from "../../lib/flexibleSelection"
 import "./AdminPage.css"
 
 type PageId =
@@ -14,12 +15,14 @@ type PageId =
   | "dev"
 
 type ProductivityWindow = "morning" | "afternoon" | "evening" | "flexible"
+type WorkEnvironment = "private" | "public" | "online" | "flexible"
 
 interface DevMember {
   id: number
   primary_role: string
   backup_role: string
   productivity_windows: ProductivityWindow[]
+  environments: WorkEnvironment[]
 }
 
 interface SimTeamPick {
@@ -60,13 +63,46 @@ interface DevUser {
   email: string
 }
 
-type DevTab = "simulator" | "create" | "matched"
+type DevTab = "simulator" | "create" | "inject" | "matched"
+
+interface InjectMember {
+  user_id: number
+  primary_role: string
+  backup_role: string
+  productivity_windows: ProductivityWindow[]
+  environments: WorkEnvironment[]
+}
+
+interface InjectResult {
+  room_id: number
+  room_code: string
+  roles: string[]
+  injected_count: number
+  injected: number[]
+  skipped: number[]
+  errors: Array<{ user_id: number; message: string }>
+  total_members: number
+  max_members: number | null
+}
+
+interface InjectRoomInfo {
+  id: number
+  room_code: string
+  project_theme: string
+  status: string
+  roles: string[]
+  productivity_windows: ProductivityWindow[]
+  max_members: number | null
+  number_of_groups: number
+  current_members: number
+}
 
 interface SetupMember {
   user_id: number
   primary_role: string
   backup_role: string
   productivity_windows: ProductivityWindow[]
+  environments: WorkEnvironment[]
 }
 
 interface CreatedRoomInfo {
@@ -181,20 +217,32 @@ const PAGE_TITLES: Record<PageId, string> = {
 }
 
 const WINDOW_OPTIONS: ProductivityWindow[] = ["morning", "afternoon", "evening", "flexible"]
+const ENV_OPTIONS: WorkEnvironment[] = ["private", "public", "online", "flexible"]
+// "flexible" is mutually exclusive — the rest are the "real" options.
+const WINDOW_REALS = ["morning", "afternoon", "evening"]
+const ENV_REALS = ["private", "public", "online"]
+
+// Flexible-exclusive toggle reused for both windows and environments.
+function toggleWindow(list: ProductivityWindow[], w: ProductivityWindow): ProductivityWindow[] {
+  return toggleFlexible(list, w, { flex: "flexible", reals: WINDOW_REALS }) as ProductivityWindow[]
+}
+function toggleEnvironment(list: WorkEnvironment[], e: WorkEnvironment): WorkEnvironment[] {
+  return toggleFlexible(list, e, { flex: "flexible", reals: ENV_REALS }) as WorkEnvironment[]
+}
 
 const DEFAULT_DEV_ROLES = ["Frontend", "Backend", "Designer"]
 
 function makeDevMember(id: number, primary = "", backup = ""): DevMember {
-  return { id, primary_role: primary, backup_role: backup, productivity_windows: [] }
+  return { id, primary_role: primary, backup_role: backup, productivity_windows: [], environments: [] }
 }
 
 const DEFAULT_DEV_MEMBERS: DevMember[] = [
-  { id: 1, primary_role: "Frontend", backup_role: "Designer", productivity_windows: ["morning"] },
-  { id: 2, primary_role: "Backend", backup_role: "Frontend", productivity_windows: ["afternoon"] },
-  { id: 3, primary_role: "Designer", backup_role: "Frontend", productivity_windows: ["flexible"] },
-  { id: 4, primary_role: "Backend", backup_role: "Designer", productivity_windows: ["evening"] },
-  { id: 5, primary_role: "Frontend", backup_role: "Backend", productivity_windows: ["morning"] },
-  { id: 6, primary_role: "Designer", backup_role: "Backend", productivity_windows: ["afternoon"] },
+  { id: 1, primary_role: "Frontend", backup_role: "Designer", productivity_windows: ["morning"],   environments: ["online"] },
+  { id: 2, primary_role: "Backend", backup_role: "Frontend", productivity_windows: ["afternoon"], environments: ["online"] },
+  { id: 3, primary_role: "Designer", backup_role: "Frontend", productivity_windows: ["flexible"],  environments: ["flexible"] },
+  { id: 4, primary_role: "Backend", backup_role: "Designer", productivity_windows: ["evening"],   environments: ["private"] },
+  { id: 5, primary_role: "Frontend", backup_role: "Backend", productivity_windows: ["morning"],   environments: ["public"] },
+  { id: 6, primary_role: "Designer", backup_role: "Backend", productivity_windows: ["afternoon"], environments: ["private"] },
 ]
 
 const USERS: UserRow[] = [
@@ -319,9 +367,10 @@ export default function AdminPage() {
 
   const [devRoles, setDevRoles] = useState<string[]>(DEFAULT_DEV_ROLES)
   const [devRoleInput, setDevRoleInput] = useState("")
-  const [devMaxPerGroup, setDevMaxPerGroup] = useState(3)
+  const [devMaxMembers, setDevMaxMembers] = useState(6)
   const [devNumberOfGroups, setDevNumberOfGroups] = useState(2)
   const [devRoomWindows, setDevRoomWindows] = useState<ProductivityWindow[]>(["flexible"])
+  const [devRoomEnvs, setDevRoomEnvs] = useState<WorkEnvironment[]>(["flexible"])
   const [devMembers, setDevMembers] = useState<DevMember[]>(DEFAULT_DEV_MEMBERS)
   const [devNextId, setDevNextId] = useState(DEFAULT_DEV_MEMBERS.length + 1)
   const [devRunning, setDevRunning] = useState(false)
@@ -337,9 +386,10 @@ export default function AdminPage() {
   // — Setup test room tab —
   const [setupRoles, setSetupRoles] = useState<string[]>(DEFAULT_DEV_ROLES)
   const [setupRoleInput, setSetupRoleInput] = useState("")
-  const [setupMaxPerGroup, setSetupMaxPerGroup] = useState(3)
+  const [setupMaxMembers, setSetupMaxMembers] = useState(6)
   const [setupNumberOfGroups, setSetupNumberOfGroups] = useState(2)
   const [setupRoomWindows, setSetupRoomWindows] = useState<ProductivityWindow[]>(["flexible"])
+  const [setupRoomEnvs, setSetupRoomEnvs] = useState<WorkEnvironment[]>(["flexible"])
   const [setupProjectTheme, setSetupProjectTheme] = useState("Dev test room")
   const [setupOwnerId, setSetupOwnerId] = useState<number | "">("")
   const [setupMembers, setSetupMembers] = useState<Record<number, SetupMember>>({})
@@ -348,15 +398,26 @@ export default function AdminPage() {
   const [setupError, setSetupError] = useState("")
   const [setupCreated, setSetupCreated] = useState<CreatedRoomInfo | null>(null)
 
+  // — Inject members tab —
+  const [injectRoomCode, setInjectRoomCode] = useState("")
+  const [injectMembers, setInjectMembers] = useState<Record<number, InjectMember>>({})
+  const [injectUserSearch, setInjectUserSearch] = useState("")
+  const [injectRunning, setInjectRunning] = useState(false)
+  const [injectError, setInjectError] = useState("")
+  const [injectResult, setInjectResult] = useState<InjectResult | null>(null)
+  const [injectRoomInfo, setInjectRoomInfo] = useState<InjectRoomInfo | null>(null)
+  const [injectRoomInfoLoading, setInjectRoomInfoLoading] = useState(false)
+  const [injectRoomInfoError, setInjectRoomInfoError] = useState("")
+
   // — Matched teams tab —
   const [matchedRooms, setMatchedRooms] = useState<MatchedRoom[]>([])
   const [matchedLoading, setMatchedLoading] = useState(false)
   const [matchedError, setMatchedError] = useState("")
   const [matchedExpanded, setMatchedExpanded] = useState<Record<number, boolean>>({})
 
-  const devCapacity = devMaxPerGroup * devNumberOfGroups
+  const devCapacity = devMaxMembers
   const devOverCapacity = devMembers.length > devCapacity
-  const setupCapacity = setupMaxPerGroup * setupNumberOfGroups
+  const setupCapacity = setupMaxMembers
   const setupMemberCount = Object.keys(setupMembers).length
   const setupOverCapacity = setupMemberCount > setupCapacity
 
@@ -381,9 +442,11 @@ export default function AdminPage() {
   }
 
   const toggleDevRoomWindow = (w: ProductivityWindow) => {
-    setDevRoomWindows((current) =>
-      current.includes(w) ? current.filter((x) => x !== w) : [...current, w],
-    )
+    setDevRoomWindows((current) => toggleWindow(current, w))
+  }
+
+  const toggleDevRoomEnv = (e: WorkEnvironment) => {
+    setDevRoomEnvs((current) => toggleEnvironment(current, e))
   }
 
   const updateDevMember = (id: number, patch: Partial<DevMember>) => {
@@ -391,16 +454,15 @@ export default function AdminPage() {
   }
 
   const toggleDevMemberWindow = (id: number, w: ProductivityWindow) => {
-    setDevMembers(devMembers.map((m) => {
-      if (m.id !== id) return m
-      const has = m.productivity_windows.includes(w)
-      return {
-        ...m,
-        productivity_windows: has
-          ? m.productivity_windows.filter((x) => x !== w)
-          : [...m.productivity_windows, w],
-      }
-    }))
+    setDevMembers(devMembers.map((m) =>
+      m.id === id ? { ...m, productivity_windows: toggleWindow(m.productivity_windows, w) } : m,
+    ))
+  }
+
+  const toggleDevMemberEnv = (id: number, e: WorkEnvironment) => {
+    setDevMembers(devMembers.map((m) =>
+      m.id === id ? { ...m, environments: toggleEnvironment(m.environments, e) } : m,
+    ))
   }
 
   const addDevMember = () => {
@@ -415,9 +477,10 @@ export default function AdminPage() {
   const resetDev = () => {
     setDevRoles(DEFAULT_DEV_ROLES)
     setDevRoleInput("")
-    setDevMaxPerGroup(3)
+    setDevMaxMembers(6)
     setDevNumberOfGroups(2)
     setDevRoomWindows(["flexible"])
+    setDevRoomEnvs(["flexible"])
     setDevMembers(DEFAULT_DEV_MEMBERS)
     setDevNextId(DEFAULT_DEV_MEMBERS.length + 1)
     setDevResult(null)
@@ -455,11 +518,13 @@ export default function AdminPage() {
       const primary = devRoles[i % devRoles.length]
       const backup = devRoles[(i + 1) % devRoles.length]
       const w = WINDOW_OPTIONS[i % WINDOW_OPTIONS.length]
+      const e = ENV_OPTIONS[i % ENV_OPTIONS.length]
       list.push({
         id: i + 1,
         primary_role: primary,
         backup_role: backup,
         productivity_windows: [w],
+        environments: [e],
       })
     }
     setDevMembers(list)
@@ -488,14 +553,16 @@ export default function AdminPage() {
     try {
       const payload = {
         roles: devRoles,
-        max_per_group: devMaxPerGroup,
+        max_members: devMaxMembers,
         number_of_groups: devNumberOfGroups,
         productivity_windows: devRoomWindows,
+        environments: devRoomEnvs,
         members: devMembers.map((m) => ({
           id: m.id,
           primary_role: m.primary_role || null,
           backup_role: m.backup_role || null,
           productivity_windows: m.productivity_windows,
+          environments: m.environments,
         })),
       }
       const { data } = await adminApi.post<{ data: SimResult; message: string }>(
@@ -543,9 +610,11 @@ export default function AdminPage() {
   }
 
   const toggleSetupRoomWindow = (w: ProductivityWindow) => {
-    setSetupRoomWindows((current) =>
-      current.includes(w) ? current.filter((x) => x !== w) : [...current, w],
-    )
+    setSetupRoomWindows((current) => toggleWindow(current, w))
+  }
+
+  const toggleSetupRoomEnv = (e: WorkEnvironment) => {
+    setSetupRoomEnvs((current) => toggleEnvironment(current, e))
   }
 
   const toggleSetupMember = (userId: number) => {
@@ -555,7 +624,7 @@ export default function AdminPage() {
         delete next[userId]
         if (setupOwnerId === userId) setSetupOwnerId("")
       } else {
-        next[userId] = { user_id: userId, primary_role: "", backup_role: "", productivity_windows: [] }
+        next[userId] = { user_id: userId, primary_role: "", backup_role: "", productivity_windows: [], environments: [] }
       }
       return next
     })
@@ -566,7 +635,7 @@ export default function AdminPage() {
       const next = { ...current }
       for (const u of filteredSetupUsers) {
         if (!next[u.id]) {
-          next[u.id] = { user_id: u.id, primary_role: "", backup_role: "", productivity_windows: [] }
+          next[u.id] = { user_id: u.id, primary_role: "", backup_role: "", productivity_windows: [], environments: [] }
         }
       }
       return next
@@ -590,11 +659,13 @@ export default function AdminPage() {
         const primary = setupRoles[idx % setupRoles.length]
         const backup = setupRoles[(idx + 1) % setupRoles.length]
         const window = WINDOW_OPTIONS[idx % WINDOW_OPTIONS.length]
+        const env = ENV_OPTIONS[idx % ENV_OPTIONS.length]
         next[uid] = {
           user_id: uid,
           primary_role: primary,
           backup_role: backup,
           productivity_windows: [window],
+          environments: [env],
         }
       })
       return next
@@ -612,25 +683,25 @@ export default function AdminPage() {
     setSetupMembers((current) => {
       const m = current[userId]
       if (!m) return current
-      const has = m.productivity_windows.includes(w)
-      return {
-        ...current,
-        [userId]: {
-          ...m,
-          productivity_windows: has
-            ? m.productivity_windows.filter((x) => x !== w)
-            : [...m.productivity_windows, w],
-        },
-      }
+      return { ...current, [userId]: { ...m, productivity_windows: toggleWindow(m.productivity_windows, w) } }
+    })
+  }
+
+  const toggleSetupMemberEnv = (userId: number, e: WorkEnvironment) => {
+    setSetupMembers((current) => {
+      const m = current[userId]
+      if (!m) return current
+      return { ...current, [userId]: { ...m, environments: toggleEnvironment(m.environments, e) } }
     })
   }
 
   const resetSetup = () => {
     setSetupRoles(DEFAULT_DEV_ROLES)
     setSetupRoleInput("")
-    setSetupMaxPerGroup(3)
+    setSetupMaxMembers(6)
     setSetupNumberOfGroups(2)
     setSetupRoomWindows(["flexible"])
+    setSetupRoomEnvs(["flexible"])
     setSetupProjectTheme("Dev test room")
     setSetupOwnerId("")
     setSetupMembers({})
@@ -673,14 +744,16 @@ export default function AdminPage() {
           owner_user_id: Number(setupOwnerId),
           project_theme: setupProjectTheme.trim(),
           roles: setupRoles,
-          max_per_group: setupMaxPerGroup,
+          max_members: setupMaxMembers,
           number_of_groups: setupNumberOfGroups,
           productivity_windows: setupRoomWindows,
+          environments: setupRoomEnvs,
           members: memberList.map((m) => ({
             user_id: m.user_id,
             primary_role: m.primary_role || null,
             backup_role: m.backup_role || null,
             productivity_windows: m.productivity_windows,
+            environments: m.environments,
           })),
         },
       )
@@ -695,6 +768,146 @@ export default function AdminPage() {
       setSetupError(firstFieldErr ?? apiMsg ?? "Create room request failed.")
     } finally {
       setSetupRunning(false)
+    }
+  }
+
+  // ── Inject members handlers ─────────────────────────────────
+  const toggleInjectMember = (userId: number) => {
+    setInjectMembers((current) => {
+      const next = { ...current }
+      if (next[userId]) {
+        delete next[userId]
+      } else {
+        next[userId] = {
+          user_id: userId,
+          primary_role: "",
+          backup_role: "",
+          productivity_windows: ["flexible"],
+          environments: ["flexible"],
+        }
+      }
+      return next
+    })
+  }
+
+  const updateInjectMember = (userId: number, patch: Partial<InjectMember>) => {
+    setInjectMembers((current) => {
+      if (!current[userId]) return current
+      return { ...current, [userId]: { ...current[userId], ...patch } }
+    })
+  }
+
+  const toggleInjectMemberWindow = (userId: number, w: ProductivityWindow) => {
+    setInjectMembers((current) => {
+      const m = current[userId]
+      if (!m) return current
+      return { ...current, [userId]: { ...m, productivity_windows: toggleWindow(m.productivity_windows, w) } }
+    })
+  }
+
+  const toggleInjectMemberEnv = (userId: number, e: WorkEnvironment) => {
+    setInjectMembers((current) => {
+      const m = current[userId]
+      if (!m) return current
+      return { ...current, [userId]: { ...m, environments: toggleEnvironment(m.environments, e) } }
+    })
+  }
+
+  const clearAllInjectMembers = () => setInjectMembers({})
+
+  const resetInject = () => {
+    setInjectRoomCode("")
+    setInjectMembers({})
+    setInjectUserSearch("")
+    setInjectError("")
+    setInjectResult(null)
+    setInjectRoomInfo(null)
+    setInjectRoomInfoError("")
+  }
+
+  const loadInjectRoomInfo = async (codeRaw?: string) => {
+    const code = (codeRaw ?? injectRoomCode).trim().toUpperCase()
+    if (code === "") {
+      setInjectRoomInfo(null)
+      setInjectRoomInfoError("")
+      return
+    }
+    if (injectRoomInfo && injectRoomInfo.room_code === code) return // cached
+    setInjectRoomInfoLoading(true)
+    setInjectRoomInfoError("")
+    try {
+      const { data } = await adminApi.get<{ data: InjectRoomInfo }>("/dev/room-info", { params: { room_code: code } })
+      setInjectRoomInfo(data.data)
+    } catch (err) {
+      const anyErr = err as { response?: { data?: { message?: string } } }
+      setInjectRoomInfo(null)
+      setInjectRoomInfoError(anyErr?.response?.data?.message ?? "Failed to load room info.")
+    } finally {
+      setInjectRoomInfoLoading(false)
+    }
+  }
+
+  const autoAssignInjectRoles = () => {
+    if (!injectRoomInfo || injectRoomInfo.roles.length === 0) {
+      setInjectError("Load room info dulu (ketik room code lalu blur), atau room ini belum punya roles.")
+      return
+    }
+    const roles = injectRoomInfo.roles
+    setInjectMembers((current) => {
+      const ids = Object.keys(current).map(Number).sort((a, b) => a - b)
+      const next: Record<number, InjectMember> = {}
+      ids.forEach((uid, idx) => {
+        const primary = roles[idx % roles.length]
+        const backup = roles[(idx + 1) % roles.length]
+        const window = WINDOW_OPTIONS[idx % WINDOW_OPTIONS.length]
+        const env = ENV_OPTIONS[idx % ENV_OPTIONS.length]
+        next[uid] = {
+          user_id: uid,
+          primary_role: primary,
+          backup_role: backup,
+          productivity_windows: [window],
+          environments: [env],
+        }
+      })
+      return next
+    })
+  }
+
+  const runInject = async () => {
+    setInjectError("")
+    setInjectResult(null)
+
+    const code = injectRoomCode.trim().toUpperCase()
+    if (code === "") { setInjectError("Room code required."); return }
+    const memberList = Object.values(injectMembers)
+    if (memberList.length < 1) { setInjectError("Pick at least one user to inject."); return }
+
+    setInjectRunning(true)
+    try {
+      const { data } = await adminApi.post<{ data: InjectResult; message: string }>(
+        "/dev/inject-members",
+        {
+          room_code: code,
+          members: memberList.map((m) => ({
+            user_id: m.user_id,
+            primary_role: m.primary_role || null,
+            backup_role: m.backup_role || null,
+            productivity_windows: m.productivity_windows,
+            environments: m.environments,
+          })),
+        },
+      )
+      setInjectResult(data.data)
+      notify(`Inject done: ${data.data.injected_count} added to ${data.data.room_code}`)
+    } catch (err) {
+      const anyErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const apiMsg = anyErr?.response?.data?.message
+      const firstFieldErr = anyErr?.response?.data?.errors
+        ? Object.values(anyErr.response.data.errors)[0]?.[0]
+        : undefined
+      setInjectError(firstFieldErr ?? apiMsg ?? "Inject request failed.")
+    } finally {
+      setInjectRunning(false)
     }
   }
 
@@ -1193,6 +1406,7 @@ export default function AdminPage() {
               <div className="tabs" style={{ marginBottom: 14 }}>
                 <button className={`tab ${devTab === "simulator" ? "active" : ""}`} onClick={() => setDevTab("simulator")}>Logic simulator</button>
                 <button className={`tab ${devTab === "create" ? "active" : ""}`} onClick={() => setDevTab("create")}>Setup test room</button>
+                <button className={`tab ${devTab === "inject" ? "active" : ""}`} onClick={() => setDevTab("inject")}>Inject to room</button>
                 <button className={`tab ${devTab === "matched" ? "active" : ""}`} onClick={() => setDevTab("matched")}>Matched teams</button>
               </div>
 
@@ -1218,9 +1432,8 @@ export default function AdminPage() {
               {devOverCapacity && (
                 <div className="alert alert-amber" style={{ marginBottom: 12 }}>
                   <div>
-                    <strong>Over capacity:</strong> {devMembers.length} members vs only {devCapacity} slots ({devNumberOfGroups} × {devMaxPerGroup}).
-                    {" "}<strong>{devMembers.length - devCapacity}</strong> member(s) will end up <em>unassigned</em>.
-                    {" "}Increase <em>number of groups</em> or <em>max per group</em>, or remove some members.
+                    <strong>Over capacity:</strong> {devMembers.length} members vs room capacity {devCapacity}.
+                    {" "}Overflow akan dibagi rata ke team (beberapa team melebihi ukuran target ~{Math.ceil(devMaxMembers / Math.max(devNumberOfGroups, 1))}/team).
                   </div>
                 </div>
               )}
@@ -1252,17 +1465,17 @@ export default function AdminPage() {
 
                     <div className="dev-grid2" style={{ marginTop: 14 }}>
                       <div>
-                        <label className="form-label">Max per group</label>
+                        <label className="form-label">Max member room</label>
                         <input
                           className="form-input"
                           type="number"
                           min={1}
-                          value={devMaxPerGroup}
-                          onChange={(event) => setDevMaxPerGroup(Math.max(1, Number(event.target.value) || 1))}
+                          value={devMaxMembers}
+                          onChange={(event) => setDevMaxMembers(Math.max(1, Number(event.target.value) || 1))}
                         />
                       </div>
                       <div>
-                        <label className="form-label">Number of groups</label>
+                        <label className="form-label">Number of Teams</label>
                         <input
                           className="form-input"
                           type="number"
@@ -1286,8 +1499,22 @@ export default function AdminPage() {
                         </label>
                       ))}
                     </div>
+
+                    <label className="form-label" style={{ marginTop: 14 }}>Room work environment</label>
+                    <div className="dev-checks">
+                      {ENV_OPTIONS.map((e) => (
+                        <label key={e} className="dev-check">
+                          <input
+                            type="checkbox"
+                            checked={devRoomEnvs.includes(e)}
+                            onChange={() => toggleDevRoomEnv(e)}
+                          />
+                          <span>{e}</span>
+                        </label>
+                      ))}
+                    </div>
                     <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-                      Capacity: {devNumberOfGroups} groups x {devMaxPerGroup} = <strong>{devNumberOfGroups * devMaxPerGroup}</strong> slots, {devMembers.length} members.
+                      Capacity: <strong>{devMaxMembers}</strong> members across {devNumberOfGroups} teams (~{Math.ceil(devMaxMembers / Math.max(devNumberOfGroups, 1))}/team), {devMembers.length} members added.
                     </div>
                   </div>
                 </div>
@@ -1374,6 +1601,19 @@ export default function AdminPage() {
                                 </label>
                               ))}
                             </div>
+                            <div className="muted" style={{ fontSize: 10, margin: "4px 0 2px" }}>Environment</div>
+                            <div className="dev-checks">
+                              {ENV_OPTIONS.map((e) => (
+                                <label key={e} className="dev-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={member.environments.includes(e)}
+                                    onChange={() => toggleDevMemberEnv(member.id, e)}
+                                  />
+                                  <span>{e}</span>
+                                </label>
+                              ))}
+                            </div>
                           </td>
                           <td>
                             <button className="btn btn-sm btn-danger" onClick={() => removeDevMember(member.id)}>Remove</button>
@@ -1395,7 +1635,7 @@ export default function AdminPage() {
                     <div className="card-body">
                       <div className="dev-meta">
                         <div><div className="muted">Teams (k)</div><strong>{devResult.meta.k_teams}</strong></div>
-                        <div><div className="muted">Max per group</div><strong>{devResult.meta.max_per_group}</strong></div>
+                        <div><div className="muted">Per team (auto)</div><strong>{devResult.meta.max_per_group}</strong></div>
                         <div><div className="muted">Members in</div><strong>{devResult.meta.total_members}</strong></div>
                         <div><div className="muted">Picks made</div><strong>{devResult.meta.total_picks}</strong></div>
                         <div><div className="muted">Unassigned</div><strong>{devResult.unassigned.length}</strong></div>
@@ -1528,8 +1768,8 @@ export default function AdminPage() {
               {setupOverCapacity && (
                 <div className="alert alert-amber" style={{ marginBottom: 12 }}>
                   <div>
-                    <strong>Over capacity:</strong> {setupMemberCount} members selected vs only {setupCapacity} slots ({setupNumberOfGroups} × {setupMaxPerGroup}).
-                    {" "}When the owner runs matching, <strong>{setupMemberCount - setupCapacity}</strong> member(s) will be unassigned.
+                    <strong>Over capacity:</strong> {setupMemberCount} members selected vs room capacity {setupCapacity}.
+                    {" "}Saat matching, overflow dibagi rata (beberapa team melebihi ukuran target ~{Math.ceil(setupMaxMembers / Math.max(setupNumberOfGroups, 1))}/team).
                   </div>
                 </div>
               )}
@@ -1579,17 +1819,17 @@ export default function AdminPage() {
 
                     <div className="dev-grid2" style={{ marginTop: 14 }}>
                       <div>
-                        <label className="form-label">Max per group</label>
+                        <label className="form-label">Max member room</label>
                         <input
                           className="form-input"
                           type="number"
                           min={1}
-                          value={setupMaxPerGroup}
-                          onChange={(event) => setSetupMaxPerGroup(Math.max(1, Number(event.target.value) || 1))}
+                          value={setupMaxMembers}
+                          onChange={(event) => setSetupMaxMembers(Math.max(1, Number(event.target.value) || 1))}
                         />
                       </div>
                       <div>
-                        <label className="form-label">Number of groups</label>
+                        <label className="form-label">Number of Teams</label>
                         <input
                           className="form-input"
                           type="number"
@@ -1613,8 +1853,22 @@ export default function AdminPage() {
                         </label>
                       ))}
                     </div>
+
+                    <label className="form-label" style={{ marginTop: 14 }}>Room work environment</label>
+                    <div className="dev-checks">
+                      {ENV_OPTIONS.map((e) => (
+                        <label key={e} className="dev-check">
+                          <input
+                            type="checkbox"
+                            checked={setupRoomEnvs.includes(e)}
+                            onChange={() => toggleSetupRoomEnv(e)}
+                          />
+                          <span>{e}</span>
+                        </label>
+                      ))}
+                    </div>
                     <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-                      Capacity: {setupNumberOfGroups} × {setupMaxPerGroup} = <strong>{setupCapacity}</strong> slots, {setupMemberCount} selected.
+                      Capacity: <strong>{setupMaxMembers}</strong> members across {setupNumberOfGroups} teams (~{Math.ceil(setupMaxMembers / Math.max(setupNumberOfGroups, 1))}/team), {setupMemberCount} selected.
                     </div>
                   </div>
                 </div>
@@ -1687,6 +1941,19 @@ export default function AdminPage() {
                                   onChange={() => toggleSetupMemberWindow(m.user_id, w)}
                                 />
                                 <span>{w}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="muted" style={{ fontSize: 10, margin: "6px 0 2px" }}>Environment</div>
+                          <div className="dev-checks">
+                            {ENV_OPTIONS.map((e) => (
+                              <label key={e} className="dev-check">
+                                <input
+                                  type="checkbox"
+                                  checked={m.environments.includes(e)}
+                                  onChange={() => toggleSetupMemberEnv(m.user_id, e)}
+                                />
+                                <span>{e}</span>
                               </label>
                             ))}
                           </div>
@@ -1763,6 +2030,294 @@ export default function AdminPage() {
                             </tr>
                           )
                         })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+              </>
+              )}
+
+              {devTab === "inject" && (
+              <>
+              <div className="page-header">
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 16 }}>Inject members to room</h2>
+                  <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>
+                    Tambah user ke room yang sudah ada langsung sebagai RoomMember. Bypass alur join — pas untuk testing matching scenario.
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn" onClick={resetInject} disabled={injectRunning}>Reset</button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={runInject}
+                    disabled={
+                      injectRunning ||
+                      Object.keys(injectMembers).length === 0 ||
+                      !injectRoomInfo ||
+                      injectRoomInfo.room_code !== injectRoomCode.trim().toUpperCase()
+                    }
+                    title={
+                      !injectRoomInfo || injectRoomInfo.room_code !== injectRoomCode.trim().toUpperCase()
+                        ? "Cek room code dulu sebelum inject"
+                        : ""
+                    }
+                  >
+                    {injectRunning ? "Injecting…" : "Inject members"}
+                  </button>
+                </div>
+              </div>
+
+              {injectError && (
+                <div className="alert alert-red" style={{ marginBottom: 12 }}>
+                  <div><strong>Error:</strong> {injectError}</div>
+                </div>
+              )}
+
+              {injectResult && (
+                <div className="alert alert-mint" style={{ marginBottom: 12 }}>
+                  <div>
+                    <strong>Done:</strong> {injectResult.injected_count} injected to <code>{injectResult.room_code}</code>.
+                    {" "}Total members now: <strong>{injectResult.total_members}</strong>
+                    {injectResult.max_members != null && <> / {injectResult.max_members}</>}.
+                    {injectResult.skipped.length > 0 && (
+                      <> · Skipped (already member): {injectResult.skipped.join(", ")}</>
+                    )}
+                    {injectResult.errors.length > 0 && (
+                      <ul style={{ margin: "6px 0 0 16px", padding: 0 }}>
+                        {injectResult.errors.map((e, i) => (
+                          <li key={i}><code>#{e.user_id}</code> — {e.message}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid2">
+                <div className="card">
+                  <div className="card-head"><div className="card-title">Target room</div></div>
+                  <div className="card-body">
+                    <label className="form-label">Room code</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        className="form-input"
+                        placeholder="e.g. LYAIUX"
+                        value={injectRoomCode}
+                        onChange={(event) => {
+                          setInjectRoomCode(event.target.value)
+                          // Invalidate previously loaded info when code is edited
+                          if (injectRoomInfo && injectRoomInfo.room_code !== event.target.value.trim().toUpperCase()) {
+                            setInjectRoomInfo(null)
+                            setInjectRoomInfoError("")
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault()
+                            const code = injectRoomCode.trim().toUpperCase()
+                            setInjectRoomCode(code)
+                            if (code !== "") void loadInjectRoomInfo(code)
+                          }
+                        }}
+                        style={{ fontFamily: "monospace", textTransform: "uppercase", flex: 1 }}
+                      />
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          const code = injectRoomCode.trim().toUpperCase()
+                          setInjectRoomCode(code)
+                          if (code !== "") void loadInjectRoomInfo(code)
+                        }}
+                        disabled={injectRoomInfoLoading || injectRoomCode.trim() === ""}
+                      >
+                        {injectRoomInfoLoading ? "Cek…" : "Cek"}
+                      </button>
+                    </div>
+                    {injectRoomInfoLoading && (
+                      <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>Loading room info…</p>
+                    )}
+                    {injectRoomInfoError && (
+                      <p className="alert-red" style={{ fontSize: 11, marginTop: 6 }}>{injectRoomInfoError}</p>
+                    )}
+                    {injectRoomInfo && injectRoomInfo.room_code === injectRoomCode.trim().toUpperCase() && (
+                      <div className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>
+                        <div><strong>{injectRoomInfo.project_theme}</strong> · status: <code>{injectRoomInfo.status}</code></div>
+                        <div>Roles: {injectRoomInfo.roles.length > 0 ? injectRoomInfo.roles.map((r) => <code key={r} style={{ marginRight: 4 }}>{r}</code>) : "—"}</div>
+                        <div>
+                          Capacity: <strong>{injectRoomInfo.current_members}</strong>
+                          {injectRoomInfo.max_members != null && <> / {injectRoomInfo.max_members}</>}
+                          {" "}members
+                          {injectRoomInfo.max_members != null && (
+                            <> · {Math.max(injectRoomInfo.max_members - injectRoomInfo.current_members, 0)} slot tersisa</>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                      Server validasi role per-user terhadap roles room. User yang sudah jadi member di-skip. Overflow di luar kapasitas ditolak per-user.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-head">
+                    <div className="card-title">Selected users ({Object.keys(injectMembers).length})</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="btn btn-sm"
+                        onClick={autoAssignInjectRoles}
+                        disabled={Object.keys(injectMembers).length === 0 || !injectRoomInfo || injectRoomInfo.roles.length === 0}
+                        title="Round-robin assign primary/backup roles + windows ke semua user terpilih, pakai roles room target"
+                      >
+                        Auto-assign roles
+                      </button>
+                      <button className="btn btn-sm" onClick={clearAllInjectMembers} disabled={Object.keys(injectMembers).length === 0}>Clear</button>
+                      <button className="btn btn-sm" onClick={loadDevUsers} disabled={devUsersLoading}>Refresh users</button>
+                    </div>
+                  </div>
+                  <div className="card-body" style={{ maxHeight: 380, overflow: "auto" }}>
+                    {Object.values(injectMembers).length === 0 && (
+                      <p className="muted" style={{ fontSize: 12, margin: 0 }}>No users picked yet. Pick from the list below.</p>
+                    )}
+                    {Object.values(injectMembers).map((m) => {
+                      const user = devUsers.find((u) => u.id === m.user_id)
+                      return (
+                        <div className="dev-team-card" key={m.user_id}>
+                          <div className="dev-team-head">
+                            <span>
+                              <strong className="dev-score-cell">#{m.user_id}</strong>{" "}
+                              {user ? user.name : "(unknown user)"}
+                            </span>
+                            <button className="btn btn-sm btn-danger" onClick={() => toggleInjectMember(m.user_id)}>Remove</button>
+                          </div>
+                          <div className="dev-grid2">
+                            <div>
+                              <label className="form-label" style={{ marginTop: 0 }}>Primary role</label>
+                              {injectRoomInfo && injectRoomInfo.roles.length > 0 ? (
+                                <select
+                                  className="form-input"
+                                  value={m.primary_role}
+                                  onChange={(event) => updateInjectMember(m.user_id, { primary_role: event.target.value })}
+                                >
+                                  <option value="">— none —</option>
+                                  {injectRoomInfo.roles.map((role) => <option key={role} value={role}>{role}</option>)}
+                                </select>
+                              ) : (
+                                <input
+                                  className="form-input"
+                                  placeholder="e.g. Frontend"
+                                  value={m.primary_role}
+                                  onChange={(event) => updateInjectMember(m.user_id, { primary_role: event.target.value })}
+                                />
+                              )}
+                            </div>
+                            <div>
+                              <label className="form-label" style={{ marginTop: 0 }}>Backup role</label>
+                              {injectRoomInfo && injectRoomInfo.roles.length > 0 ? (
+                                <select
+                                  className="form-input"
+                                  value={m.backup_role}
+                                  onChange={(event) => updateInjectMember(m.user_id, { backup_role: event.target.value })}
+                                >
+                                  <option value="">— none —</option>
+                                  {injectRoomInfo.roles.map((role) => <option key={role} value={role}>{role}</option>)}
+                                </select>
+                              ) : (
+                                <input
+                                  className="form-input"
+                                  placeholder="optional"
+                                  value={m.backup_role}
+                                  onChange={(event) => updateInjectMember(m.user_id, { backup_role: event.target.value })}
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 8 }}>
+                            <label className="form-label" style={{ marginTop: 0 }}>Productivity windows</label>
+                            <div className="dev-checks">
+                              {WINDOW_OPTIONS.map((w) => (
+                                <label key={w} className="dev-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={m.productivity_windows.includes(w)}
+                                    onChange={() => toggleInjectMemberWindow(m.user_id, w)}
+                                  />
+                                  <span>{w}</span>
+                                </label>
+                              ))}
+                            </div>
+                            <label className="form-label" style={{ marginTop: 8 }}>Work environment</label>
+                            <div className="dev-checks">
+                              {ENV_OPTIONS.map((e) => (
+                                <label key={e} className="dev-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={m.environments.includes(e)}
+                                    onChange={() => toggleInjectMemberEnv(m.user_id, e)}
+                                  />
+                                  <span>{e}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginTop: 14 }}>
+                <div className="card-head">
+                  <div className="card-title">Pick users to inject</div>
+                  <input
+                    className="form-input"
+                    placeholder="Search by name, username, or email"
+                    value={injectUserSearch}
+                    onChange={(event) => setInjectUserSearch(event.target.value)}
+                    style={{ maxWidth: 280 }}
+                  />
+                </div>
+                <div className="card-body">
+                  {devUsersLoading && <p className="muted" style={{ fontSize: 12 }}>Loading users…</p>}
+                  {devUsersError && <p className="alert-red" style={{ fontSize: 12 }}>{devUsersError}</p>}
+                  {!devUsersLoading && !devUsersError && (
+                    <table className="dev-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 32 }}></th>
+                          <th>ID</th>
+                          <th>Name</th>
+                          <th>Username</th>
+                          <th>Email</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {devUsers
+                          .filter((user) => {
+                            const q = injectUserSearch.trim().toLowerCase()
+                            if (q === "") return true
+                            return (
+                              String(user.id).includes(q) ||
+                              user.name.toLowerCase().includes(q) ||
+                              (user.username || "").toLowerCase().includes(q) ||
+                              user.email.toLowerCase().includes(q)
+                            )
+                          })
+                          .map((user) => {
+                            const picked = !!injectMembers[user.id]
+                            return (
+                              <tr key={user.id}>
+                                <td><input type="checkbox" checked={picked} onChange={() => toggleInjectMember(user.id)} /></td>
+                                <td>#{user.id}</td>
+                                <td>{user.name}</td>
+                                <td>{user.username ?? "(no username)"}</td>
+                                <td>{user.email}</td>
+                              </tr>
+                            )
+                          })}
                       </tbody>
                     </table>
                   )}

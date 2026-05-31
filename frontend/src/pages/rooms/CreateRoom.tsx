@@ -1,50 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
-import { useCreateRoom } from "../../hooks/useRooms";
+import { useCreateRoom, useFinalizeJoinRoom } from "../../hooks/useRooms";
+import { useDebounce } from "../../hooks/useDebounce";
+import { apiPost } from "../../lib/api";
+import { toggleFlexible } from "../../lib/flexibleSelection";
+import {
+  PRODUCTIVITY_SLOTS,
+  WORK_ENV_SLOTS,
+  TIME_FLEX,
+  TIME_REALS,
+  ENV_FLEX,
+  ENV_REALS,
+  toWindowValue,
+  toEnvValue,
+} from "../../lib/preferences";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
+
+// Shape returned by POST /api/normalize-role (read-only preview).
+interface NormalizeResult {
+  original: string;
+  normalized: string;
+  changed: boolean;
+}
 
 // ============================================================
 // TYPES
 // ============================================================
-type ProductivityWindow = "Morning" | "Afternoon" | "Evening" | "Flexible-Time";
-type WorkEnvironment = "Private" | "Public" | "Online" | "Flexible-Work";
-type Screen = "form" | "success" | "info";
-
-// ============================================================
-// ICON HELPERS
-// ============================================================
-function SunIcon()      { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>; }
-function MoonIcon()     { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
-function GlobeIcon()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>; }
-function LockIcon()     { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>; }
-function InfinityIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 12c-2-2.5-4-4-6-4a4 4 0 0 0 0 8c2 0 4-1.5 6-4z"/><path d="M12 12c2 2.5 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.5-6 4z"/></svg>; }
-function ZapIcon()      { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>; }
-
-// ============================================================
-// SUB-COMPONENT: ToggleChip
-// ============================================================
-function ToggleChip({ label, icon, selected, onClick }: {
-  label: string;
-  icon: React.ReactNode;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] cursor-pointer transition-all duration-150 whitespace-nowrap border ${
-        selected
-          ? "border-blue-500 text-blue-500 font-semibold"
-          : "border-pp-chip text-slate-500 font-normal hover:border-blue-500/50 hover:text-slate-400"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+type Screen = "form" | "configure" | "success" | "info";
 
 // ============================================================
 // SUB-COMPONENT: NumberInput
@@ -137,8 +121,8 @@ function ScreenInfo({ name, roles, maxPerGroup, numGroups, roomCode, onDone }: {
         {/* Stats */}
         <div className="flex gap-6">
           {[
-            { num: maxPerGroup, lbl: "Members / Group" },
-            { num: numGroups, lbl: "Groups" },
+            { num: maxPerGroup, lbl: "Max Members" },
+            { num: numGroups, lbl: "Teams" },
             { num: roles.length, lbl: "Roles Defined" },
           ].map(({ num, lbl }) => (
             <div key={lbl}>
@@ -195,14 +179,26 @@ export default function CreateRoom() {
   const [projectName, setProjectName] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
   const [roleInput, setRoleInput] = useState("");
-  const [maxMembers, setMaxMembers] = useState(5);
+  const [rolePreview, setRolePreview] = useState<NormalizeResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const roleFieldRef = useRef<HTMLDivElement>(null);
+  const debouncedRoleInput = useDebounce(roleInput, 500);
+  const [maxMembers, setMaxMembers] = useState(10);
   const [numGroups, setNumGroups] = useState(2);
-  const [selectedWindows, setSelectedWindows] = useState<Set<ProductivityWindow>>(new Set(["Morning"]));
-  const [selectedEnvs, setSelectedEnvs] = useState<Set<WorkEnvironment>>(new Set(["Online"]));
+  const [createRoomOnly, setCreateRoomOnly] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [roomCode, setRoomCode] = useState("");
+
+  // Owner profile setup (shown after create when not "Create Room Only").
+  const finalizeJoinMutation = useFinalizeJoinRoom();
+  const [createdRoles, setCreatedRoles] = useState<string[]>([]);
+  const [ownerPrimary, setOwnerPrimary] = useState("");
+  const [ownerBackups, setOwnerBackups] = useState<string[]>([]);
+  const [ownerWindows, setOwnerWindows] = useState<string[]>([]);
+  const [ownerEnvs, setOwnerEnvs] = useState<string[]>([]);
 
   const initials = useMemo(() => {
     if (!user?.name) return "U";
@@ -215,22 +211,66 @@ export default function CreateRoom() {
   const validRoles = roles; // all entries are already trimmed non-empty
   const canCreate = projectName.trim().length > 0 && validRoles.length >= 2 && !submitting;
 
-  const poolMin = maxMembers * numGroups;
-  const poolMax = poolMin + 2;
+  const perTeam = numGroups > 0 ? Math.ceil(maxMembers / numGroups) : 0;
 
-  function toggleSet<T>(set: Set<T>, item: T): Set<T> {
-    const next = new Set(set);
-    if (next.has(item)) next.delete(item); else next.add(item);
-    return next;
-  }
-
-  const addRole = () => {
-    const trimmed = roleInput.trim();
+  const addRoleValue = (value: string) => {
+    const trimmed = value.trim();
     if (!trimmed || roles.includes(trimmed)) return;
     setRoles([...roles, trimmed]);
     setRoleInput("");
+    setRolePreview(null);
+    setDropdownOpen(false);
   };
+  const addRole = () => addRoleValue(roleInput);
   const deleteRole = (i: number) => setRoles(roles.filter((_, idx) => idx !== i));
+
+  // Live preview: ask the backend how the typed role will be normalized.
+  useEffect(() => {
+    const trimmed = debouncedRoleInput.trim();
+    if (!trimmed) {
+      setRolePreview(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPreviewLoading(true);
+    apiPost<NormalizeResult>("/normalize-role", { role: trimmed })
+      .then((res) => {
+        if (!cancelled) setRolePreview(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setRolePreview(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedRoleInput]);
+
+  // Dismiss the role dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (roleFieldRef.current && !roleFieldRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [dropdownOpen]);
 
   const handleNavClick = (label: string) => {
     setActiveNav(label);
@@ -238,6 +278,7 @@ export default function CreateRoom() {
     if (label === "Join Room")  navigate("/join-room");
     if (label === "My Rooms")   navigate("/my-rooms");
     if (label === "Profile")    navigate("/profile");
+    if (label === "History")    navigate("/history");
   };
 
   const handleLogout = async () => {
@@ -258,11 +299,15 @@ export default function CreateRoom() {
       const created = await createRoomMutation.mutateAsync({
         name: projectName.trim(),
         roles: validRoles,
-        maxPerGroup: maxMembers,
+        maxMembers,
         numGroups,
+        createRoomOnly,
       });
       setRoomCode(typeof created?.room_code === "string" ? created.room_code : "");
-      setScreen("success");
+      const normalizedRoles = Array.isArray(created?.roles) ? (created.roles as string[]) : validRoles;
+      setCreatedRoles(normalizedRoles);
+      // When the owner joins as a member, let them set their own profile first.
+      setScreen(createRoomOnly ? "success" : "configure");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan.");
     } finally {
@@ -273,21 +318,46 @@ export default function CreateRoom() {
   const handleDone = () => {
     if (roomCode) { navigate(`/rooms/${roomCode}`); return; }
     setScreen("form"); setProjectName(""); setRoles([]); setRoleInput("");
-    setMaxMembers(5); setNumGroups(2); setRoomCode(""); setErrorMessage("");
+    setMaxMembers(10); setNumGroups(2); setCreateRoomOnly(false); setRoomCode(""); setErrorMessage("");
+    setCreatedRoles([]); setOwnerPrimary(""); setOwnerBackups([]); setOwnerWindows([]); setOwnerEnvs([]);
   };
 
-  const productivityOptions: { key: ProductivityWindow; label: string; icon: React.ReactNode }[] = [
-    { key: "Morning",       label: "Morning",   icon: <SunIcon /> },
-    { key: "Afternoon",     label: "Afternoon", icon: <SunIcon /> },
-    { key: "Evening",       label: "Evening",   icon: <MoonIcon /> },
-    { key: "Flexible-Time", label: "Flexible",  icon: <InfinityIcon /> },
-  ];
-  const envOptions: { key: WorkEnvironment; label: string; icon: React.ReactNode }[] = [
-    { key: "Private",      label: "Private",  icon: <LockIcon /> },
-    { key: "Public",       label: "Public",   icon: <GlobeIcon /> },
-    { key: "Online",       label: "Online",   icon: <GlobeIcon /> },
-    { key: "Flexible-Work", label: "Flexible", icon: <ZapIcon /> },
-  ];
+  // ── Owner profile setup (configure screen) ──
+  const pickOwnerPrimary = (role: string) => {
+    setOwnerPrimary((prev) => (prev === role ? "" : role));
+    setOwnerBackups((prev) => prev.filter((b) => b !== role));
+  };
+  const pickOwnerBackup = (role: string) => {
+    setOwnerPrimary((prev) => (prev === role ? "" : prev));
+    setOwnerBackups((prev) => (prev.includes(role) ? prev.filter((b) => b !== role) : [...prev, role]));
+  };
+  const toggleOwnerWindow = (id: string) =>
+    setOwnerWindows((prev) => toggleFlexible(prev, id, { flex: TIME_FLEX, reals: TIME_REALS }));
+  const toggleOwnerEnv = (id: string) =>
+    setOwnerEnvs((prev) => toggleFlexible(prev, id, { flex: ENV_FLEX, reals: ENV_REALS }));
+
+  const canFinishProfile =
+    ownerPrimary !== "" && ownerBackups.length > 0 && ownerWindows.length > 0 && ownerEnvs.length > 0 && !submitting;
+
+  const handleSaveOwnerProfile = async () => {
+    if (!canFinishProfile || !roomCode) return;
+    setErrorMessage("");
+    setSubmitting(true);
+    try {
+      await finalizeJoinMutation.mutateAsync({
+        roomCode,
+        primaryRole: ownerPrimary,
+        backupRoles: ownerBackups,
+        productivityWindows: ownerWindows.map(toWindowValue).filter((v): v is string => v !== null),
+        environments: ownerEnvs.map(toEnvValue).filter((v): v is string => v !== null),
+      });
+      setScreen("success");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Gagal menyimpan profil.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const shell = (content: React.ReactNode) => (
     <div className="flex h-screen bg-pp-bg font-sans text-slate-100 overflow-hidden">
@@ -305,6 +375,132 @@ export default function CreateRoom() {
     </div>
   );
 
+  if (screen === "configure") return shell(
+    <div className="flex flex-col gap-6 max-w-[560px] mx-auto pt-4 pb-10 w-full">
+      <div>
+        <h2 className="m-0 mb-1.5 text-2xl font-extrabold text-slate-50">Atur Profil Kamu</h2>
+        <p className="m-0 text-[13px] text-slate-500">
+          Kamu ikut sebagai anggota room ini. Pilih role dan preferensi kerjamu untuk proses matching.
+        </p>
+      </div>
+
+      {errorMessage && (
+        <div className="px-4 py-3 bg-[#1f0a0a] border border-red-500 rounded-lg text-red-400 text-[13px]">
+          {errorMessage}
+        </div>
+      )}
+
+      {/* Role selection */}
+      <div className="bg-pp-card border border-pp-border rounded-2xl p-6">
+        <p className="m-0 mb-1 text-[13px] text-slate-400 font-medium">
+          Pilih Role <span className="text-slate-600 font-normal">(1 primary &amp; backup berurutan)</span>
+        </p>
+        <p className="m-0 mb-3 text-[11px] text-slate-600">
+          Urutan backup menentukan prioritas (backup 1 lebih diutamakan dari backup 2).
+        </p>
+        <div className="flex flex-col gap-2">
+          {createdRoles.map((role) => {
+            const isPrimary = ownerPrimary === role;
+            const backupRank = ownerBackups.indexOf(role);
+            const isBackup = backupRank >= 0;
+            return (
+              <div
+                key={role}
+                className="flex items-center justify-between gap-3 bg-pp-bg border border-pp-border rounded-lg px-4 py-2.5"
+              >
+                <span className="text-sm text-slate-200 truncate">{role}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => pickOwnerPrimary(role)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                      isPrimary ? "bg-blue-500 text-white" : "bg-pp-border text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Primary
+                  </button>
+                  <button
+                    onClick={() => pickOwnerBackup(role)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 ${
+                      isBackup ? "bg-indigo-500 text-white" : "bg-pp-border text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Backup
+                    {isBackup && (
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/25 text-[10px] font-bold">
+                        {backupRank + 1}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Productivity Windows */}
+      <div className="bg-pp-card border border-pp-border rounded-2xl p-6">
+        <p className="m-0 text-[13px] text-slate-400 font-medium">Productivity Windows</p>
+        <p className="m-0 mt-1 text-[11px] text-slate-600">
+          Pilih hingga 2. Pilih ketiganya untuk otomatis jadi <span className="text-blue-400">Flexible</span>.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          {PRODUCTIVITY_SLOTS.map((t) => {
+            const active = ownerWindows.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                onClick={() => toggleOwnerWindow(t.id)}
+                className={`text-left border rounded-xl px-4 py-3 transition-colors ${
+                  active ? "border-blue-500/50 bg-blue-500/5" : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
+                }`}
+              >
+                <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">{t.short}</div>
+                <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>{t.name}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{t.range}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Work Environment */}
+      <div className="bg-pp-card border border-pp-border rounded-2xl p-6">
+        <p className="m-0 text-[13px] text-slate-400 font-medium">Work Environment</p>
+        <p className="m-0 mt-1 text-[11px] text-slate-600">
+          Pilih hingga 2. Pilih ketiganya untuk otomatis jadi <span className="text-blue-400">Flexible</span>.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          {WORK_ENV_SLOTS.map((e) => {
+            const active = ownerEnvs.includes(e.id);
+            return (
+              <button
+                key={e.id}
+                onClick={() => toggleOwnerEnv(e.id)}
+                className={`text-left border rounded-xl px-4 py-3 transition-colors ${
+                  active ? "border-blue-500/50 bg-blue-500/5" : "border-pp-border bg-pp-elevated hover:border-blue-500/40"
+                }`}
+              >
+                <div className="text-[10px] font-semibold text-blue-500 tracking-[0.08em] uppercase mb-2">{e.short}</div>
+                <div className={`text-[13px] font-semibold ${active ? "text-blue-400" : "text-slate-100"}`}>{e.name}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{e.range}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <button
+        onClick={handleSaveOwnerProfile}
+        disabled={!canFinishProfile}
+        className={`w-full py-[14px] border-none rounded-[10px] text-[15px] font-bold cursor-pointer transition-colors duration-200 tracking-[0.3px] ${
+          canFinishProfile ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-pp-border text-slate-600 cursor-not-allowed"
+        }`}
+      >
+        {submitting ? "Menyimpan..." : "Lanjut"}
+      </button>
+    </div>
+  );
   if (screen === "success") return shell(<ScreenSuccess onNext={() => setScreen("info")} />);
   if (screen === "info")    return shell(<ScreenInfo name={projectName} roles={validRoles} maxPerGroup={maxMembers} numGroups={numGroups} roomCode={roomCode} onDone={handleDone} />);
 
@@ -317,7 +513,7 @@ export default function CreateRoom() {
         </div>
       )}
 
-      <div className="grid gap-5 items-start" style={{ gridTemplateColumns: "1fr 380px", gridTemplateRows: "auto auto" }}>
+      <div className="grid gap-5 items-start" style={{ gridTemplateColumns: "1fr 380px" }}>
         {/* ── Card 1: Project Identity ── */}
         <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
           <div className="flex items-center gap-2.5 mb-6">
@@ -344,25 +540,59 @@ export default function CreateRoom() {
               Role Definitions <span className="text-slate-600 font-normal">(min. 2)</span>
             </label>
 
-            {/* Input + Add button */}
-            <div className="flex gap-2 mb-3">
-              <input
-                value={roleInput}
-                onChange={(e) => setRoleInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRole()}
-                placeholder="e.g. Frontend Developer"
-                className="flex-1 px-4 py-[11px] bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors duration-200 placeholder:text-slate-600"
-              />
-              <button
-                onClick={addRole}
-                disabled={!roleInput.trim() || roles.includes(roleInput.trim())}
-                className="flex items-center gap-1.5 px-4 h-[42px] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed border-none rounded-lg text-white text-[13px] font-semibold cursor-pointer shrink-0 transition-colors duration-150"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Add
-              </button>
+            {/* Input + Add button (+ normalization dropdown) */}
+            <div ref={roleFieldRef} className="relative mb-3">
+              <div className="flex gap-2">
+                <input
+                  value={roleInput}
+                  onChange={(e) => {
+                    setRoleInput(e.target.value);
+                    setDropdownOpen(e.target.value.trim().length > 0);
+                  }}
+                  onFocus={() => roleInput.trim() && setDropdownOpen(true)}
+                  onKeyDown={(e) => e.key === "Enter" && addRole()}
+                  placeholder="e.g. Frontend Developer"
+                  className="flex-1 px-4 py-[11px] bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors duration-200 placeholder:text-slate-600"
+                />
+                <button
+                  onClick={addRole}
+                  disabled={!roleInput.trim() || roles.includes(roleInput.trim())}
+                  className="flex items-center gap-1.5 px-4 h-[42px] bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed border-none rounded-lg text-white text-[13px] font-semibold cursor-pointer shrink-0 transition-colors duration-150"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add
+                </button>
+              </div>
+
+              {/* Normalization suggestion dropdown */}
+              {dropdownOpen && roleInput.trim() && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-pp-card border border-pp-border rounded-lg shadow-xl overflow-hidden">
+                  {previewLoading ? (
+                    <div className="px-4 py-2.5 text-[12px] text-slate-500 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" />
+                      memeriksa…
+                    </div>
+                  ) : rolePreview ? (
+                    /* Suggestion: normalized canonical */
+                    <button
+                      type="button"
+                      disabled={roles.includes(rolePreview.normalized)}
+                      onClick={() => addRoleValue(rolePreview.normalized)}
+                      className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left border-none bg-transparent hover:bg-pp-elevated disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors duration-150"
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2z"/></svg>
+                        <span className="text-sm font-mono text-blue-400">{rolePreview.normalized}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-600 uppercase tracking-wide shrink-0">
+                        {roles.includes(rolePreview.normalized) ? "sudah ada" : "saran"}
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             {/* Added roles list */}
@@ -410,14 +640,15 @@ export default function CreateRoom() {
           </div>
 
           <div className="mb-5">
-            <label className="block text-[13px] text-slate-400 mb-2 font-medium">Max members per group</label>
+            <label className="block text-[13px] text-slate-400 mb-2 font-medium">Max member room</label>
             <NumberInput value={maxMembers} onChange={setMaxMembers} min={2}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}
             />
+            <p className="text-[11px] text-slate-600 mt-1.5">Total maksimal anggota yang boleh join room ini.</p>
           </div>
 
           <div className="mb-6">
-            <label className="block text-[13px] text-slate-400 mb-2 font-medium">Number of groups</label>
+            <label className="block text-[13px] text-slate-400 mb-2 font-medium">Number of Teams</label>
             <NumberInput value={numGroups} onChange={setNumGroups} min={2}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
             />
@@ -425,16 +656,32 @@ export default function CreateRoom() {
 
           <div className="border-t border-pp-border mb-5" />
 
-          {/* Pool estimate */}
+          {/* Capacity estimate */}
           <div className="mb-5">
             <div className="flex justify-between items-center mb-2.5">
-              <span className="text-sm text-slate-400">Estimated Pool Size:</span>
-              <span className="text-sm font-bold text-blue-500">{poolMin}–{poolMax} Members</span>
+              <span className="text-sm text-slate-400">Total Kapasitas:</span>
+              <span className="text-sm font-bold text-blue-500">{maxMembers} Members</span>
             </div>
-            <div className="bg-pp-border rounded-full h-1 overflow-hidden">
-              <div className="w-2/5 h-full bg-blue-500 rounded-full" />
-            </div>
+            <p className="text-[12px] text-slate-500">
+              {numGroups} team · ~{perTeam} member per team (otomatis)
+            </p>
           </div>
+
+          {/* Create Room Only */}
+          <label className="flex items-start gap-2.5 mb-5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={createRoomOnly}
+              onChange={(e) => setCreateRoomOnly(e.target.checked)}
+              className="mt-0.5 shrink-0 accent-blue-500 cursor-pointer"
+            />
+            <span>
+              <span className="block text-[13px] text-slate-300 font-medium">Create Room Only</span>
+              <span className="block text-[11px] text-slate-600 leading-relaxed">
+                Buat room tanpa ikut jadi anggota — kamu hanya memantau, tidak ikut dimatch ke team.
+              </span>
+            </span>
+          </label>
 
           {/* Validation hint */}
           {!canCreate && !submitting && (
@@ -459,42 +706,6 @@ export default function CreateRoom() {
           >
             {submitting ? "Creating..." : "Create Room"}
           </button>
-        </div>
-
-        {/* ── Card 3: Collaboration Logistics ── */}
-        <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
-          <div className="flex items-center gap-2.5 mb-6">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            <h2 className="m-0 text-xl font-bold text-slate-50">Collaboration Logistics</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <p className="m-0 mb-3 text-[13px] text-slate-400 font-medium">Productivity Windows</p>
-              <div className="grid grid-cols-2 gap-2">
-                {productivityOptions.map((opt) => (
-                  <ToggleChip key={opt.key} label={opt.label} icon={opt.icon}
-                    selected={selectedWindows.has(opt.key)}
-                    onClick={() => setSelectedWindows(toggleSet(selectedWindows, opt.key))}
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="m-0 mb-3 text-[13px] text-slate-400 font-medium">Work Environment</p>
-              <div className="grid grid-cols-2 gap-2">
-                {envOptions.map((opt) => (
-                  <ToggleChip key={opt.key} label={opt.label} icon={opt.icon}
-                    selected={selectedEnvs.has(opt.key)}
-                    onClick={() => setSelectedEnvs(toggleSet(selectedEnvs, opt.key))}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

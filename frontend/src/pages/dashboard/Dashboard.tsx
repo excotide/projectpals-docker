@@ -121,6 +121,7 @@ export default function Dashboard() {
     if (label === "Join Room")   navigate("/join-room");
     if (label === "My Rooms")    navigate("/my-rooms");
     if (label === "Profile")     navigate("/profile");
+    if (label === "History")     navigate("/history");
   };
 
   const handleJoinRoom = () => {

@@ -8,6 +8,7 @@ use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Room;
 use App\Models\RoomMember;
+use App\Services\RoleNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -148,7 +149,9 @@ class RoomController extends Controller
                 'joined_at'           => $member->joined_at,
                 'primary_role'        => $member->primary_role,
                 'backup_role'         => $member->backup_role,
+                'backup_roles'        => $member->backup_roles,
                 'productivity_windows' => $member->productivity_windows,
+                'environments'        => $member->environments,
                 'user' => $member->user ? [
                     'id'       => $member->user->id,
                     'name'     => $member->user->name,
@@ -172,9 +175,27 @@ class RoomController extends Controller
         ]);
     }
 
-    public function store(CreateRoomRequest $request): JsonResponse
+    public function store(CreateRoomRequest $request, RoleNormalizer $normalizer): JsonResponse
     {
         $validated = $request->validated();
+
+        // Normalize each free-form role to its canonical form, then dedupe while
+        // preserving order. Different inputs ("fe", "Front-end") may collapse to one.
+        $canonicalRoles = collect($validated['roles'])
+            ->map(static fn (string $role): string => $normalizer->normalize($role))
+            ->filter(static fn (string $role): bool => $role !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if (\count($canonicalRoles) < 2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Role yang kamu masukkan ternormalisasi menjadi role yang sama. Tambahkan role yang berbeda.',
+            ], 422);
+        }
+
+        $validated['roles'] = $canonicalRoles;
 
         $room = Room::create([
             ...$validated,
@@ -186,11 +207,14 @@ class RoomController extends Controller
 
         $room->load('creator');
 
-        RoomMember::create([
-            'room_id'   => $room->id,
-            'user_id'   => auth()->id(),
-            'joined_at' => now(),
-        ]);
+        // Owner joins as a member unless they opted to only monitor the room.
+        if (! $request->boolean('create_room_only')) {
+            RoomMember::create([
+                'room_id'   => $room->id,
+                'user_id'   => auth()->id(),
+                'joined_at' => now(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -266,6 +290,16 @@ class RoomController extends Controller
                 'success' => false,
                 'message' => 'No room fields provided for update.',
             ], 422);
+        }
+
+        // Derive per-team size from total capacity ("Max member room") whenever
+        // max_members is updated, using the new or existing team count.
+        if (\array_key_exists('max_members', $validated)) {
+            $groups = (int) ($validated['number_of_groups'] ?? $room->number_of_groups);
+            $maxMembers = (int) $validated['max_members'];
+            if ($groups > 0 && $maxMembers > 0) {
+                $validated['max_per_group'] = (int) ceil($maxMembers / $groups);
+            }
         }
 
         $room->fill($validated);
@@ -383,11 +417,13 @@ class RoomController extends Controller
             ], 422);
         }
 
-        if (! empty($validated['backup_role']) && ! \in_array($validated['backup_role'], $availableRoles, true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected backup role is not available in this room.',
-            ], 422);
+        foreach (($validated['backup_roles'] ?? []) as $backup) {
+            if (! \in_array($backup, $availableRoles, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected backup role is not available in this room.',
+                ], 422);
+            }
         }
 
         $member = RoomMember::query()->firstOrNew([
@@ -397,9 +433,21 @@ class RoomController extends Controller
 
         $isNewMember = ! $member->exists;
 
+        if ($isNewMember && $room->max_members !== null) {
+            $currentCount = RoomMember::query()->where('room_id', $room->id)->count();
+            if ($currentCount >= (int) $room->max_members) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Room sudah penuh.',
+                ], 422);
+            }
+        }
+
         $member->primary_role        = $validated['primary_role'] ?? $member->primary_role;
         $member->backup_role         = $validated['backup_role'] ?? $member->backup_role;
+        $member->backup_roles        = $validated['backup_roles'] ?? $member->backup_roles;
         $member->productivity_windows = $validated['productivity_windows'] ?? $member->productivity_windows;
+        $member->environments        = $validated['environments'] ?? $member->environments;
 
         if ($isNewMember) {
             $member->joined_at = now();

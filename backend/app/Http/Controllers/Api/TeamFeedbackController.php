@@ -120,12 +120,12 @@ class TeamFeedbackController extends Controller
             ], 422);
         }
 
-        $isTargetInTeam = TeamMember::query()
+        $targetMember = TeamMember::query()
             ->where('team_id', $team->id)
             ->where('room_member_id', $toRoomMemberId)
-            ->exists();
+            ->first();
 
-        if (! $isTargetInTeam) {
+        if (! $targetMember) {
             return response()->json([
                 'success' => false,
                 'message' => 'Target is not a member of this team.',
@@ -142,8 +142,9 @@ class TeamFeedbackController extends Controller
                 'to_room_member_id'   => $toRoomMemberId,
             ],
             [
-                'rating'  => $data['rating'],
-                'content' => $content,
+                'rating'           => $data['rating'],
+                'content'          => $content,
+                'to_assigned_role' => $targetMember->assigned_role,
             ],
         );
 
@@ -216,6 +217,7 @@ class TeamFeedbackController extends Controller
             'team_id'             => $f->team_id,
             'from_room_member_id' => $f->from_room_member_id,
             'to_room_member_id'   => $f->to_room_member_id,
+            'to_assigned_role'    => $f->to_assigned_role,
             'rating'              => $f->rating !== null ? (int) $f->rating : null,
             'content'             => $f->content,
             'created_at'          => $f->created_at?->toIso8601String(),
