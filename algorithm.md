@@ -20,7 +20,7 @@ Matching hanya berjalan bila kondisi berikut terpenuhi (MatchingController):
 - jumlah anggota >= (jumlah team x jumlah role) agar semua role ter-cover di tiap team
 
 ### 1.2 Fase 1: Profile Clustering
-Tujuan: mengelompokkan member ke K team berdasarkan kemiripan profil.
+Tujuan: mengelompokkan member  ke K team berdasarkan kemiripan profil.
 Profil = Productivity Windows + Work Environment.
 
 Langkah:
