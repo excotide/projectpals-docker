@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useFinalizeJoinRoom, useJoinRoomPreview } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import { toggleFlexible } from "../../lib/flexibleSelection";
 import {
   PRODUCTIVITY_SLOTS,
@@ -72,7 +73,7 @@ export default function JoinRoom() {
   const [roomRoles, setRoomRoles] = useState<Role[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [activeNav, setActiveNav] = useState("Join Room");
+  const { activeNav, handleNavClick } = useSidebarNavigation("Join Room");
   const [loggingOut, setLoggingOut] = useState(false);
   const joinPreviewQuery = useJoinRoomPreview(code.trim().toUpperCase());
   const finalizeJoinMutation = useFinalizeJoinRoom();
@@ -188,16 +189,6 @@ export default function JoinRoom() {
     if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
     return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
   }, [user?.name]);
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard") navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room") navigate("/join-room");
-    if (label === "My Rooms") navigate("/my-rooms");
-    if (label === "Profile") navigate("/profile");
-    if (label === "History") navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;

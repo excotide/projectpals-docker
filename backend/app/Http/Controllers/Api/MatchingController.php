@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPushNotification;
 use App\Models\Room;
 use App\Models\Team;
 use App\Models\TeamFeedback;
@@ -221,6 +222,30 @@ class MatchingController extends Controller
             ->orderBy('team_number')
             ->get();
 
+        // Notify each member that their team has been formed.
+        foreach ($teams as $team) {
+            $userIds = $team->members
+                ->map(fn (TeamMember $tm) => (int) ($tm->roomMember->user_id ?? 0))
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($userIds === []) {
+                continue;
+            }
+
+            SendPushNotification::dispatch(
+                $userIds,
+                'Tim kamu sudah terbentuk!',
+                "{$room->project_theme} — kamu di Team {$team->team_number}",
+                [
+                    'type'        => 'matching_done',
+                    'room_code'   => (string) $room->room_code,
+                    'team_number' => (string) $team->team_number,
+                ],
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Teams formed.',
@@ -370,6 +395,13 @@ class MatchingController extends Controller
             ], 422);
         }
 
+        if (trim((string) $team->project_name) === '' || $team->deadline === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lengkapi judul dan deadline proyek terlebih dahulu sebelum menyelesaikan.',
+            ], 422);
+        }
+
         $memberIds = TeamMember::query()
             ->where('team_id', $team->id)
             ->pluck('room_member_id')
@@ -412,6 +444,30 @@ class MatchingController extends Controller
         $team->update(['finished_at' => now()]);
         $team->refresh();
 
+        // Notify the team members that the project has been completed.
+        $room = $team->room;
+        $userIds = TeamMember::query()
+            ->where('team_id', $team->id)
+            ->with('roomMember')
+            ->get()
+            ->map(fn (TeamMember $tm) => (int) ($tm->roomMember->user_id ?? 0))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($userIds !== []) {
+            SendPushNotification::dispatch(
+                $userIds,
+                'Proyek selesai',
+                trim((string) ($team->project_name ?: $room?->project_theme)).' telah ditandai selesai.',
+                [
+                    'type'      => 'room_completed',
+                    'room_code' => (string) ($room?->room_code ?? ''),
+                    'team_id'   => (string) $team->id,
+                ],
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Project marked as finished.',
@@ -423,9 +479,17 @@ class MatchingController extends Controller
         ]);
     }
 
-    public function changeMemberRole(Request $request, Team $team, TeamMember $member): JsonResponse
+    public function changeMemberRole(Request $request, Team $team, int $roomMemberId): JsonResponse
     {
-        if ((int) $member->team_id !== (int) $team->id) {
+        // The frontend identifies team members by their room_member_id (consistent
+        // with transferLeader/feedback), so resolve the TeamMember manually rather
+        // than relying on implicit binding by the team_members primary key.
+        $member = TeamMember::query()
+            ->where('team_id', $team->id)
+            ->where('room_member_id', $roomMemberId)
+            ->first();
+
+        if (! $member) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member does not belong to this team.',

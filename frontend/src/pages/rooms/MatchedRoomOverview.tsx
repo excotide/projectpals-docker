@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useRoomByCode, useRoomTeams } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import MatchedTeamView from "../../components/teams/MatchedTeamView";
@@ -16,7 +17,7 @@ export default function MatchedRoomOverview() {
   const roomQuery = useRoomByCode(roomCode);
   const teamsQuery = useRoomTeams(roomCode, { enabled: roomQuery.data?.room?.status === "ongoing" });
 
-  const [activeNav, setActiveNav] = useState("My Rooms");
+  const { activeNav, handleNavClick } = useSidebarNavigation("My Rooms");
   const [loggingOut, setLoggingOut] = useState(false);
 
   const room = roomQuery.data?.room ?? null;
@@ -43,16 +44,6 @@ export default function MatchedRoomOverview() {
       navigate(`/rooms/${roomCode}`, { replace: true });
     }
   }, [access.is_owner, navigate, room, roomCode, roomQuery.isLoading]);
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard") navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room") navigate("/join-room");
-    if (label === "My Rooms") navigate("/my-rooms");
-    if (label === "Profile") navigate("/profile");
-    if (label === "History") navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -116,6 +107,7 @@ export default function MatchedRoomOverview() {
                 room_code: room.room_code,
                 status: room.status,
                 environments: room.environments as string[] | undefined,
+                created_at: room.created_at,
               }}
             />
           )}

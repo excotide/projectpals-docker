@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useMyRooms } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
@@ -179,7 +180,7 @@ export default function MyRooms() {
   const logoutMutation = useLogout();
   const { data: roomsData, isLoading: roomsLoading, error: roomsQueryError } = useMyRooms();
 
-  const [activeNav, setActiveNav] = useState("My Rooms");
+  const { activeNav, handleNavClick } = useSidebarNavigation("My Rooms");
   const [loggingOut, setLoggingOut] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
 
@@ -197,15 +198,6 @@ export default function MyRooms() {
     if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
     return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
   }, [user?.name]);
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard")   navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room")   navigate("/join-room");
-    if (label === "Profile")     navigate("/profile");
-    if (label === "History")     navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;

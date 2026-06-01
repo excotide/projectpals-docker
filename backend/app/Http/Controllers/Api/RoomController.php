@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPushNotification;
 use App\Http\Requests\CreateRoomRequest;
 use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
@@ -195,6 +196,28 @@ class RoomController extends Controller
             ], 422);
         }
 
+        // Reject configurations that can never cover every role in every team, so
+        // the room fails at creation rather than later at matching time.
+        $roleCount = \count($canonicalRoles);
+        $groups = (int) $validated['number_of_groups'];
+        $maxMembers = (int) $validated['max_members'];
+        $maxPerGroup = (int) $validated['max_per_group'];
+
+        if ($maxPerGroup < $roleCount) {
+            return response()->json([
+                'success' => false,
+                'message' => "Kapasitas per team ({$maxPerGroup}) lebih kecil dari jumlah role ({$roleCount}). Naikkan Max member room atau kurangi jumlah team/role.",
+            ], 422);
+        }
+
+        if ($maxMembers < $groups * $roleCount) {
+            $needed = $groups * $roleCount;
+            return response()->json([
+                'success' => false,
+                'message' => "Max member room ({$maxMembers}) tidak cukup untuk mengisi semua role di setiap team. Butuh minimal {$needed} member ({$groups} team × {$roleCount} role).",
+            ], 422);
+        }
+
         $validated['roles'] = $canonicalRoles;
 
         $room = Room::create([
@@ -223,7 +246,7 @@ class RoomController extends Controller
         ], 201);
     }
 
-    public function removeMember(string $roomCode, int $memberId): JsonResponse
+    public function removeMember(Request $request, string $roomCode, int $memberId): JsonResponse
     {
         $userId = auth()->id();
 
@@ -260,7 +283,24 @@ class RoomController extends Controller
             ], 422);
         }
 
+        $kickedUserId = (int) $member->user_id;
+        $reason = trim((string) $request->input('reason', ''));
+
         $member->delete();
+
+        // Notify the removed member only.
+        SendPushNotification::dispatch(
+            [$kickedUserId],
+            'Kamu dikeluarkan dari room',
+            $reason !== ''
+                ? "{$room->project_theme} — {$reason}"
+                : "Kamu dikeluarkan dari room {$room->project_theme}.",
+            [
+                'type'      => 'kicked',
+                'room_code' => (string) $room->room_code,
+                'reason'    => $reason,
+            ],
+        );
 
         return response()->json([
             'success' => true,

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
-import { useMyRooms } from "../../hooks/useRooms";
+import { useMyRooms, useMyFeedbackSummary } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
@@ -50,13 +51,31 @@ function formatDate(dateString?: string) {
   });
 }
 
+function Stars({ value }: { value: number }) {
+  const rounded = Math.round(value);
+  return (
+    <span className="text-amber-400 text-sm leading-none" aria-label={`${value} of 5`}>
+      {"★".repeat(rounded)}
+      <span className="text-slate-600">{"★".repeat(Math.max(0, 5 - rounded))}</span>
+    </span>
+  );
+}
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
   const { data: roomsData, isLoading: roomsLoading, error: roomsError } = useMyRooms();
+  const { data: feedbackSummary, isLoading: feedbackLoading } = useMyFeedbackSummary();
   const logoutMutation = useLogout();
 
-  const [activeNav, setActiveNav] = useState("Profile");
+  const { activeNav, handleNavClick } = useSidebarNavigation("Profile");
   const [loggingOut, setLoggingOut] = useState(false);
 
   const displayName = user?.name ?? "User";
@@ -77,15 +96,8 @@ export default function ProfilePage() {
   const rooms = (roomsData ?? []) as RoomItem[];
   const historyItems = rooms.slice(0, 4);
 
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard") navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room") navigate("/join-room");
-    if (label === "My Rooms") navigate("/my-rooms");
-    if (label === "Profile") navigate("/profile");
-    if (label === "History") navigate("/history");
-  };
+  const roleRatings = feedbackSummary?.role_ratings ?? [];
+  const feedbacks = feedbackSummary?.feedbacks ?? [];
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -204,32 +216,60 @@ export default function ProfilePage() {
 
             <aside className="space-y-4">
               <div className="bg-pp-card border border-pp-border rounded-2xl p-5">
-                <div className="text-xs text-slate-500 uppercase tracking-widest">Activity Hub</div>
-                <div className="mt-3 bg-blue-500/20 border border-blue-500/40 rounded-2xl p-4">
-                  <div className="text-[10px] uppercase tracking-[0.3em] text-blue-200">Rating</div>
-                  <div className="text-3xl font-bold text-blue-100">894</div>
-                  <div className="text-[11px] text-blue-200/80">Total Stars</div>
+                <div className="text-[11px] uppercase tracking-widest text-slate-500 mb-3">Average Rating by Role</div>
+                {feedbackLoading && (
+                  <div className="text-sm text-slate-500">Loading...</div>
+                )}
+                {!feedbackLoading && roleRatings.length === 0 && (
+                  <div className="text-sm text-slate-500">Belum ada rating.</div>
+                )}
+                <div className="space-y-2">
+                  {roleRatings.map((r) => (
+                    <div
+                      key={r.role}
+                      className="flex items-center justify-between bg-pp-elevated border border-pp-border rounded-xl px-3 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-100 truncate">{r.role}</div>
+                        <div className="text-[10px] text-slate-500">{r.count} feedback</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Stars value={r.avg_rating} />
+                        <span className="text-sm font-semibold text-blue-200">{r.avg_rating.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="bg-pp-card border border-pp-border rounded-2xl p-5 space-y-4">
-                <div>
-                  <div className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Productivity Preferences</div>
-                  <div className="flex items-center justify-between bg-pp-elevated border border-pp-border rounded-xl px-3 py-3">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Active window</div>
-                      <div className="text-sm font-semibold text-slate-100">Afternoon</div>
+              <div className="bg-pp-card border border-pp-border rounded-2xl p-5">
+                <div className="text-[11px] uppercase tracking-widest text-slate-500 mb-3">Feedback from Teammates</div>
+                {feedbackLoading && (
+                  <div className="text-sm text-slate-500">Loading...</div>
+                )}
+                {!feedbackLoading && feedbacks.length === 0 && (
+                  <div className="text-sm text-slate-500">Belum ada feedback.</div>
+                )}
+                <div className="space-y-3">
+                  {feedbacks.map((f) => (
+                    <div key={f.id} className="bg-pp-elevated border border-pp-border rounded-xl p-3">
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <div className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#1f2a44,#3759a6)] border border-blue-500/40 flex items-center justify-center text-[11px] font-bold text-blue-100 shrink-0">
+                          {initialsOf(f.from_user?.name ?? "?")}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-slate-100 truncate">{f.from_user?.name ?? "Anonymous"}</div>
+                          {f.to_assigned_role && (
+                            <div className="text-[10px] text-slate-500">as {f.to_assigned_role}</div>
+                          )}
+                        </div>
+                        {f.rating != null && <Stars value={f.rating} />}
+                      </div>
+                      {f.content && (
+                        <p className="text-[12px] text-slate-400 leading-relaxed">{f.content}</p>
+                      )}
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-[10px] font-semibold text-blue-200">SUN</div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Expertise</div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1 rounded-full border border-pp-border bg-pp-elevated text-xs text-slate-200">Frontend</span>
-                    <span className="px-3 py-1 rounded-full border border-pp-border bg-pp-elevated text-xs text-slate-200">Backend</span>
-                  </div>
+                  ))}
                 </div>
               </div>
             </aside>

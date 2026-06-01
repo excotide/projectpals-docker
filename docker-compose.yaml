@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: projectpals-app:latest
     container_name: projectpals-app
     working_dir: /var/www/html
     volumes:
@@ -14,6 +15,37 @@ services:
         condition: service_healthy   # ← update ini, tunggu Oracle ready dulu
     networks:
       - projectpals
+
+  # Reuses the image built by the `app` service (no separate build → no rebuild).
+  scheduler:
+    image: projectpals-app:latest
+    container_name: projectpals-scheduler
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+    networks:
+      - projectpals
+
+  # Enable when QUEUE_CONNECTION is switched from `sync` to `database`/`redis`.
+  # With `sync`, jobs run inline (scheduler/web request) and no worker is needed.
+  # queue:
+  #   image: projectpals-app:latest
+  #   container_name: projectpals-queue
+  #   working_dir: /var/www/html
+  #   command: php artisan queue:work --tries=3
+  #   volumes:
+  #     - ./backend:/var/www/html
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   networks:
+  #     - projectpals
 
   nginx:
     image: nginx:1.27-alpine

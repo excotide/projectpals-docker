@@ -7,6 +7,7 @@ use App\Models\Team;
 use App\Models\TeamRoleTarget;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class TeamTargetController extends Controller
 {
@@ -48,6 +49,13 @@ class TeamTargetController extends Controller
             ], 403);
         }
 
+        if (trim((string) $team->project_name) === '' || $team->deadline === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lengkapi judul dan deadline proyek terlebih dahulu sebelum menambah target.',
+            ], 422);
+        }
+
         $data = $request->validate([
             'role'     => ['required', 'string', 'max:100'],
             'title'    => ['required', 'string', 'max:255'],
@@ -61,6 +69,10 @@ class TeamTargetController extends Controller
                 'success' => false,
                 'message' => 'Invalid role for this room.',
             ], 422);
+        }
+
+        if ($error = $this->validateDeadline($team, $data['deadline'] ?? null)) {
+            return $error;
         }
 
         $maxOrder = (int) TeamRoleTarget::query()
@@ -108,6 +120,10 @@ class TeamTargetController extends Controller
                 'success' => false,
                 'message' => 'No fields to update.',
             ], 422);
+        }
+
+        if (\array_key_exists('deadline', $data) && ($error = $this->validateDeadline($team, $data['deadline']))) {
+            return $error;
         }
 
         $payload = [];
@@ -184,6 +200,38 @@ class TeamTargetController extends Controller
             'success' => true,
             'data' => $this->format($target->fresh()),
         ]);
+    }
+
+    /**
+     * Ensure a target deadline is not earlier than the room creation date and,
+     * when the team has a project deadline, does not exceed it. Compares by
+     * calendar day so the time-of-day picked by the user is not penalised.
+     * Returns a 422 JsonResponse on violation, or null when valid.
+     */
+    private function validateDeadline(Team $team, ?string $deadline): ?JsonResponse
+    {
+        if ($deadline === null || $deadline === '') {
+            return null;
+        }
+
+        $target = Carbon::parse($deadline);
+
+        $room = $team->room;
+        if ($room && $room->created_at && $target->copy()->startOfDay()->lt($room->created_at->copy()->startOfDay())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deadline target tidak boleh sebelum room dibuat.',
+            ], 422);
+        }
+
+        if ($team->deadline && $target->gt($team->deadline)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deadline target tidak boleh melebihi deadline proyek team ('.$team->deadline->format('d M Y H:i').').',
+            ], 422);
+        }
+
+        return null;
     }
 
     private function format(TeamRoleTarget $t): array

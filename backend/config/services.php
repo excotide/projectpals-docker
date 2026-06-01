@@ -41,4 +41,9 @@ return [
         'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
     ],
 
+    'fcm' => [
+        // Hours before a team's deadline to send the reminder push.
+        'reminder_hours' => (int) env('FCM_REMINDER_HOURS', 24),
+    ],
+
 ];

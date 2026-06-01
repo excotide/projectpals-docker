@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../lib/api'
+import { registerFcmToken, unregisterFcmToken } from '../lib/fcm'
 
 export interface AuthUser {
   id: number | string
@@ -62,6 +63,7 @@ export function useLogin() {
     onSuccess: async (data) => {
       window.localStorage.setItem('token', data.token)
       await queryClient.invalidateQueries({ queryKey: authKeys.currentUser() })
+      void registerFcmToken()
     },
   })
 }
@@ -80,6 +82,8 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
+      // Remove this device's push token while the auth token is still valid.
+      await unregisterFcmToken()
       await apiPost<null>('/auth/logout', {})
     },
     onSuccess: async () => {

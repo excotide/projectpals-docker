@@ -741,6 +741,36 @@ export function useTeamHistory() {
   })
 }
 
+export interface ProfileRoleRating {
+  role: string
+  avg_rating: number
+  count: number
+}
+
+export interface ProfileFeedbackItem {
+  id: number | string
+  to_assigned_role?: string | null
+  rating: number | null
+  content: string | null
+  created_at: string | null
+  from_user?: { id: number | string; name: string; username: string } | null
+}
+
+export interface FeedbackSummary {
+  role_ratings: ProfileRoleRating[]
+  feedbacks: ProfileFeedbackItem[]
+}
+
+export function useMyFeedbackSummary() {
+  return useQuery({
+    queryKey: ['me', 'feedback-summary'],
+    queryFn: async () => {
+      const response = await apiGet<FeedbackSummary>('/me/feedback-summary')
+      return response.data
+    },
+  })
+}
+
 export interface GiveFeedbackPayload {
   teamId: number | string
   toRoomMemberId: number | string

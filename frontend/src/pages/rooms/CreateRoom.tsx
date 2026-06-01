@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useCreateRoom, useFinalizeJoinRoom } from "../../hooks/useRooms";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import { apiPost } from "../../lib/api";
 import { toggleFlexible } from "../../lib/flexibleSelection";
 import {
@@ -172,7 +173,7 @@ export default function CreateRoom() {
   const logoutMutation = useLogout();
   const createRoomMutation = useCreateRoom();
 
-  const [activeNav, setActiveNav] = useState("Create Room");
+  const { activeNav, handleNavClick } = useSidebarNavigation("Create Room");
   const [loggingOut, setLoggingOut] = useState(false);
   const [screen, setScreen] = useState<Screen>("form");
 
@@ -272,15 +273,6 @@ export default function CreateRoom() {
     };
   }, [dropdownOpen]);
 
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard") navigate("/dashboard");
-    if (label === "Join Room")  navigate("/join-room");
-    if (label === "My Rooms")   navigate("/my-rooms");
-    if (label === "Profile")    navigate("/profile");
-    if (label === "History")    navigate("/history");
-  };
-
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -296,15 +288,27 @@ export default function CreateRoom() {
     setErrorMessage("");
     setSubmitting(true);
     try {
-      const created = await createRoomMutation.mutateAsync({
-        name: projectName.trim(),
-        roles: validRoles,
-        maxMembers,
-        numGroups,
-        createRoomOnly,
+      const normalizedRoles = await Promise.all(
+        validRoles.map(async (role) => {
+          try {
+            const res = await apiPost<NormalizeResult>("/normalize-role", { role });
+            return res.data.normalized || role;
+          } catch {
+            return role;
+          }
+        })
+      );
+
+      const createdRoom = await createRoomMutation.mutateAsync({
+        project_theme: projectName.trim(),
+        roles: normalizedRoles,
+        max_members: maxMembers,
+        max_per_group: perTeam,
+        number_of_groups: numGroups,
+        create_room_only: createRoomOnly,
       });
-      setRoomCode(typeof created?.room_code === "string" ? created.room_code : "");
-      const normalizedRoles = Array.isArray(created?.roles) ? (created.roles as string[]) : validRoles;
+
+      setRoomCode(createdRoom?.room_code ?? "");
       setCreatedRoles(normalizedRoles);
       // When the owner joins as a member, let them set their own profile first.
       setScreen(createRoomOnly ? "success" : "configure");

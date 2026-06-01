@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\FcmTokenController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\MatchingController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamFeedbackController;
@@ -21,6 +23,9 @@ Route::prefix('auth')->group(function (): void {
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/history/teams', [HistoryController::class, 'teams']);
+    Route::get('/me/feedback-summary', [ProfileController::class, 'feedbackSummary']);
+    Route::post('/fcm/token', [FcmTokenController::class, 'store']);
+    Route::delete('/fcm/token', [FcmTokenController::class, 'destroy']);
     Route::get('/rooms/my-rooms', [RoomController::class, 'myRooms']);
     Route::get('/rooms/{roomCode}/join-preview', [RoomController::class, 'previewForJoin']);
     Route::get('/rooms/{roomCode}/members', [RoomController::class, 'members']);
@@ -34,7 +39,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/teams/{team}/transfer-leader', [MatchingController::class, 'transferLeader']);
     Route::patch('/teams/{team}', [MatchingController::class, 'updateTeam']);
     Route::post('/teams/{team}/finish', [MatchingController::class, 'finishTeam']);
-    Route::patch('/teams/{team}/members/{member}/role', [MatchingController::class, 'changeMemberRole']);
+    Route::patch('/teams/{team}/members/{roomMemberId}/role', [MatchingController::class, 'changeMemberRole']);
     Route::get('/teams/{team}/targets', [TeamTargetController::class, 'index']);
     Route::post('/teams/{team}/targets', [TeamTargetController::class, 'store']);
     Route::patch('/teams/{team}/targets/{target}', [TeamTargetController::class, 'update']);

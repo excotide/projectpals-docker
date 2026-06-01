@@ -47,6 +47,8 @@ class DevController extends Controller
             'members.*.id'                         => ['required', 'integer'],
             'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
             'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles'               => ['sometimes', 'array'],
+            'members.*.backup_roles.*'             => ['string', 'max:100'],
             'members.*.productivity_windows'       => ['sometimes', 'array'],
             'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
             'members.*.environments'               => ['sometimes', 'array'],
@@ -71,10 +73,13 @@ class DevController extends Controller
         ];
 
         $members = array_map(static function (array $m): array {
+            $backupRoles = self::normalizeBackupRoles($m['backup_roles'] ?? null, $m['backup_role'] ?? null, $m['primary_role'] ?? null);
+
             return [
                 'id'                   => (int) $m['id'],
                 'primary_role'         => $m['primary_role'] ?? null,
-                'backup_role'          => $m['backup_role'] ?? null,
+                'backup_role'          => $backupRoles[0] ?? ($m['backup_role'] ?? null),
+                'backup_roles'         => $backupRoles,
                 'productivity_windows' => array_values($m['productivity_windows'] ?? []),
                 'environments'         => array_values($m['environments'] ?? []),
             ];
@@ -125,6 +130,8 @@ class DevController extends Controller
             'members.*.user_id'                    => ['required', 'integer'],
             'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
             'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles'               => ['sometimes', 'array'],
+            'members.*.backup_roles.*'             => ['string', 'max:100'],
             'members.*.productivity_windows'       => ['sometimes', 'array'],
             'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
             'members.*.environments'               => ['sometimes', 'array'],
@@ -189,11 +196,14 @@ class DevController extends Controller
                     }
                     $seen[] = $userId;
 
+                    $backupRoles = self::normalizeBackupRoles($m['backup_roles'] ?? null, $m['backup_role'] ?? null, $m['primary_role'] ?? null);
+
                     RoomMember::create([
                         'room_id'              => $roomRow->id,
                         'user_id'              => $userId,
                         'primary_role'         => $m['primary_role'] ?? null,
-                        'backup_role'          => $m['backup_role'] ?? null,
+                        'backup_role'          => $backupRoles[0] ?? null,
+                        'backup_roles'         => $backupRoles,
                         'productivity_windows' => $m['productivity_windows'] ?? [],
                         'environments'         => $m['environments'] ?? [],
                         'joined_at'            => now(),
@@ -334,6 +344,8 @@ class DevController extends Controller
             'members.*.user_id'                    => ['required', 'integer'],
             'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
             'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles'               => ['sometimes', 'array'],
+            'members.*.backup_roles.*'             => ['string', 'max:100'],
             'members.*.productivity_windows'       => ['sometimes', 'array'],
             'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
             'members.*.environments'               => ['sometimes', 'array'],
@@ -395,13 +407,15 @@ class DevController extends Controller
                     }
 
                     $primary = $m['primary_role'] ?? null;
-                    $backup  = $m['backup_role'] ?? null;
                     if ($primary !== null && $primary !== '' && ! \in_array($primary, $availableRoles, true)) {
                         $errors[] = ['user_id' => $userId, 'message' => 'Invalid primary_role for this room.'];
                         continue;
                     }
-                    if ($backup !== null && $backup !== '' && ! \in_array($backup, $availableRoles, true)) {
-                        $errors[] = ['user_id' => $userId, 'message' => 'Invalid backup_role for this room.'];
+
+                    $backupRoles = self::normalizeBackupRoles($m['backup_roles'] ?? null, $m['backup_role'] ?? null, $primary);
+                    $invalidBackup = array_values(array_filter($backupRoles, static fn ($r) => ! \in_array($r, $availableRoles, true)));
+                    if ($invalidBackup !== []) {
+                        $errors[] = ['user_id' => $userId, 'message' => 'Invalid backup_role for this room: '.implode(', ', $invalidBackup)];
                         continue;
                     }
 
@@ -414,7 +428,8 @@ class DevController extends Controller
                         'room_id'              => $room->id,
                         'user_id'              => $userId,
                         'primary_role'         => $primary ?: null,
-                        'backup_role'          => $backup ?: null,
+                        'backup_role'          => $backupRoles[0] ?? null,
+                        'backup_roles'         => $backupRoles,
                         'productivity_windows' => $m['productivity_windows'] ?? [],
                         'environments'         => $m['environments'] ?? [],
                         'joined_at'            => now(),
@@ -445,5 +460,34 @@ class DevController extends Controller
                 'max_members'    => $room->max_members,
             ],
         ]);
+    }
+
+    /**
+     * Build a clean, ordered list of backup roles. Prefers the `backup_roles`
+     * array; falls back to the legacy single `backup_role`. Drops blanks,
+     * duplicates, and any role equal to the primary role.
+     *
+     * @param  mixed  $backupRoles
+     * @return array<int, string>
+     */
+    private static function normalizeBackupRoles($backupRoles, ?string $legacy, ?string $primary): array
+    {
+        $candidates = \is_array($backupRoles) && $backupRoles !== []
+            ? $backupRoles
+            : ($legacy !== null && $legacy !== '' ? [$legacy] : []);
+
+        $clean = [];
+        foreach ($candidates as $role) {
+            if (! \is_string($role)) {
+                continue;
+            }
+            $role = trim($role);
+            if ($role === '' || $role === $primary || \in_array($role, $clean, true)) {
+                continue;
+            }
+            $clean[] = $role;
+        }
+
+        return $clean;
     }
 }

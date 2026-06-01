@@ -11,6 +11,7 @@ import {
   useUpdateRoom,
   type RoomMemberItem,
 } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import MatchedTeamView from "../../components/teams/MatchedTeamView";
@@ -76,7 +77,7 @@ export default function DetailOwnerRoom() {
   const isMatched = roomStatus === "ongoing";
   const teamsQuery = useRoomTeams(roomCode, { enabled: isMatched });
 
-  const [activeNav,  setActiveNav]  = useState("My Rooms");
+  const { activeNav, handleNavClick } = useSidebarNavigation("My Rooms");
   const [loggingOut, setLoggingOut] = useState(false);
   const [editing,    setEditing]    = useState(false);
   const [actionErr,  setActionErr]  = useState("");
@@ -122,16 +123,6 @@ export default function DetailOwnerRoom() {
     if (!user?.name) return "U";
     return getInitials(user.name);
   }, [user?.name]);
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard")   navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room")   navigate("/join-room");
-    if (label === "My Rooms")    navigate("/my-rooms");
-    if (label === "Profile")     navigate("/profile");
-    if (label === "History")     navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -389,6 +380,20 @@ export default function DetailOwnerRoom() {
               {/* ── Matched view: team tabs + shared MatchedTeamView ──────────── */}
               {isMatched && (
                 <div className="space-y-6">
+                  <section className="bg-pp-card border border-pp-border rounded-2xl p-5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-base font-semibold text-white truncate">{room.project_theme}</h2>
+                      <p className="text-[11px] text-slate-600 font-mono tracking-wider">{room.room_code}</p>
+                    </div>
+                    <button
+                      onClick={openDeleteRoom}
+                      disabled={deleteMutation.isPending}
+                      className="shrink-0 px-4 py-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors border-none cursor-pointer"
+                    >
+                      {deleteMutation.isPending ? "Deleting..." : "Delete Room"}
+                    </button>
+                  </section>
+
                   {teamsQuery.isLoading && (
                     <p className="text-center text-slate-600 text-sm py-8">Loading teams...</p>
                   )}
@@ -428,6 +433,7 @@ export default function DetailOwnerRoom() {
                         room_code: room.room_code,
                         status: room.status,
                         environments: room.environments as string[] | undefined,
+                        created_at: room.created_at,
                       }}
                     />
                   )}

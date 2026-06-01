@@ -10,6 +10,7 @@ import {
   type RoomMemberItem,
 } from "../../hooks/useRooms";
 import { toggleFlexible } from "../../lib/flexibleSelection";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
@@ -401,7 +402,7 @@ export default function DetailMemberRoom() {
   const isMatched = roomQuery.data?.room?.status === "ongoing";
   const teamsQuery = useRoomTeams(roomCode, { enabled: isMatched });
 
-  const [activeNav,   setActiveNav]   = useState("My Rooms");
+  const { activeNav, handleNavClick } = useSidebarNavigation("My Rooms");
   const [loggingOut,  setLoggingOut]  = useState(false);
   const [showEdit,    setShowEdit]    = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -432,16 +433,6 @@ export default function DetailMemberRoom() {
     (m.user?.name ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (m.primary_role ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard")   navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room")   navigate("/join-room");
-    if (label === "My Rooms")    navigate("/my-rooms");
-    if (label === "Profile")     navigate("/profile");
-    if (label === "History")     navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;

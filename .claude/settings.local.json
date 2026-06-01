@@ -21,7 +21,16 @@
       "Bash(php -l backend/app/Services/TeamFormation/SnakeDraftService.php)",
       "Bash(php -l backend/app/Models/Room.php)",
       "Bash(php -l backend/app/Http/Requests/CreateRoomRequest.php)",
-      "Bash(php -l backend/app/Http/Requests/UpdateRoomRequest.php)"
+      "Bash(php -l backend/app/Http/Requests/UpdateRoomRequest.php)",
+      "Bash(php -l app/Http/Controllers/Api/TeamTargetController.php)",
+      "Bash(php -l app/Http/Controllers/Api/MatchingController.php)",
+      "Bash(php -l app/Http/Controllers/Api/ProfileController.php)",
+      "Bash(php -l routes/api.php)",
+      "Bash(composer --version)",
+      "Bash(php --version)",
+      "Bash(grep -n \"FIREBASE_CREDENTIALS\\\\|FCM_REMINDER\" .env)",
+      "Bash(grep -nE \"firebase|service-account|^/?storage\" .gitignore)",
+      "Bash(grep -nE \"^use \\(Illuminate\\\\\\\\\\\\\\\\Http\\\\\\\\\\\\\\\\Request|App\\\\\\\\\\\\\\\\Jobs\\)\" /d/PROYEK/SMT4/projectpals/backend/app/Http/Controllers/Api/RoomController.php)"
     ]
   }
 }

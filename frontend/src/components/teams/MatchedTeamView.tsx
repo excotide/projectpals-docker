@@ -45,6 +45,7 @@ export interface MatchedTeamViewProps {
     room_code?: string;
     status?: string;
     environments?: string[];
+    created_at?: string;
   };
 }
 
@@ -66,10 +67,17 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
 
   const projectStatus = computeProjectStatus(team.deadline, team.finished_at);
   const isFinished = team.finished_at != null;
+  // Judul + deadline proyek wajib terisi sebelum boleh menambah target / menyelesaikan proyek.
+  const projectInfoComplete = Boolean(team.project_name?.trim()) && Boolean(team.deadline);
   const feedbackStatus = feedbackStatusQuery.data;
   const feedbacksGiven = feedbacksGivenQuery.data?.feedbacks ?? [];
 
   const teamMembers = team.members;
+
+  // Target deadlines must fall between the room creation date and (when set) the
+  // team's project deadline. Used as min/max on the datetime-local inputs.
+  const targetDeadlineMin = isoToLocalInput(roomInfo.created_at);
+  const targetDeadlineMax = isoToLocalInput(team.deadline);
 
   const currentUserIsLeader = useMemo(() => {
     if (!user?.id) return false;
@@ -122,6 +130,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   const [editProjectErr, setEditProjectErr] = useState("");
   const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
   const [finishErr, setFinishErr] = useState("");
+  const [incompleteWarnOpen, setIncompleteWarnOpen] = useState(false);
   const [feedbackTargetId, setFeedbackTargetId] = useState<number | string | null>(null);
   const [feedbackContent, setFeedbackContent] = useState("");
   const [feedbackRating, setFeedbackRating] = useState<number>(0);
@@ -184,6 +193,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   };
 
   const handleAddTarget = async (role: string) => {
+    if (!projectInfoComplete) { setIncompleteWarnOpen(true); return; }
     const title = (newTargetByRole[role] ?? "").trim();
     if (!title) return;
     setTargetErr("");
@@ -347,7 +357,10 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
               )}
               {currentUserIsLeader && !isFinished && (
                 <button
-                  onClick={() => { setFinishErr(""); setFinishConfirmOpen(true); }}
+                  onClick={() => {
+                    if (!projectInfoComplete) { setIncompleteWarnOpen(true); return; }
+                    setFinishErr(""); setFinishConfirmOpen(true);
+                  }}
                   className="px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold cursor-pointer transition-colors"
                 >
                   Tandai Selesai
@@ -503,6 +516,15 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
             />
           </div>
 
+          {currentUserIsLeader && !projectInfoComplete && (
+            <button
+              onClick={() => setIncompleteWarnOpen(true)}
+              className="w-full mb-3 text-left bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 text-amber-300 text-[11px] cursor-pointer hover:bg-amber-500/15 transition-colors"
+            >
+              Lengkapi judul & deadline proyek dulu sebelum menambah target.
+            </button>
+          )}
+
           {targetsQuery.isLoading && (
             <p className="text-[12px] text-slate-500">Loading target...</p>
           )}
@@ -609,7 +631,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                         />
                         <button
                           onClick={() => handleAddTarget(role)}
-                          disabled={!draft.trim() || createTarget.isPending}
+                          disabled={createTarget.isPending || (projectInfoComplete && !draft.trim())}
                           className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <IconPlus />
@@ -619,6 +641,8 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                         type="datetime-local"
                         value={newTargetDeadlineByRole[role] ?? ""}
                         onChange={(e) => setNewTargetDeadlineByRole((prev) => ({ ...prev, [role]: e.target.value }))}
+                        min={targetDeadlineMin || undefined}
+                        max={targetDeadlineMax || undefined}
                         title="Deadline target (opsional)"
                         className="w-full bg-pp-elevated border border-pp-border rounded-md px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-blue-500"
                       />
@@ -921,6 +945,35 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
         );
       })()}
 
+      {incompleteWarnOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIncompleteWarnOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md bg-[#161b23] border border-[#252c2e] rounded-2xl shadow-2xl shadow-black/50 p-6">
+            <h3 className="text-base font-bold text-slate-100 mb-2">Lengkapi proyek terlebih dahulu</h3>
+            <p className="text-sm text-[#8892a4] mb-5">
+              Isi <strong className="text-slate-200">judul</strong> dan <strong className="text-slate-200">deadline</strong> proyek terlebih dahulu sebelum menambah target atau menyelesaikan proyek.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIncompleteWarnOpen(false)}
+                className="flex-1 py-2.5 bg-transparent border border-[#252c2e] rounded-xl text-[#8892a4] hover:text-slate-300 hover:border-[#3d4a5a] text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => { setIncompleteWarnOpen(false); openEditProject(); }}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 border-none rounded-xl text-white text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Edit Proyek
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingTargetId != null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
@@ -945,6 +998,8 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
                   type="datetime-local"
                   value={editingTargetDeadline}
                   onChange={(e) => setEditingTargetDeadline(e.target.value)}
+                  min={targetDeadlineMin || undefined}
+                  max={targetDeadlineMax || undefined}
                   className="w-full px-4 py-2.5 bg-pp-bg border border-pp-border rounded-lg text-slate-100 text-sm outline-none focus:border-blue-600 transition-colors"
                 />
                 {editingTargetDeadline && (

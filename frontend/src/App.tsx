@@ -15,6 +15,7 @@ import AdminPanel from "./pages/admin/AdminPanel"
 import AdminRoute from "./components/admin/AdminRoute"
 import { AdminAuthProvider } from "./hooks/useAdminAuth"
 import { ADMIN_PREFIX } from "./lib/adminApi"
+import FcmRegistrar from "./components/FcmRegistrar"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem("token")
@@ -31,6 +32,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <FcmRegistrar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<AuthPage />} />

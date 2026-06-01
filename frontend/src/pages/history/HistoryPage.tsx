@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useTeamHistory } from "../../hooks/useRooms";
+import { useSidebarNavigation } from "../../hooks/useSidebarNavigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 
@@ -50,7 +51,7 @@ export default function HistoryPage() {
   const logoutMutation = useLogout();
   const { data: historyData, isLoading, error } = useTeamHistory();
 
-  const [activeNav, setActiveNav] = useState("History");
+  const { activeNav, handleNavClick } = useSidebarNavigation("History");
   const [loggingOut, setLoggingOut] = useState(false);
 
   const historyItems = (historyData ?? []) as TeamHistoryItem[];
@@ -70,16 +71,6 @@ export default function HistoryPage() {
       ratingAverage: ratingAverage === null ? null : Number(ratingAverage.toFixed(1)),
     };
   }, [historyItems]);
-
-  const handleNavClick = (label: string) => {
-    setActiveNav(label);
-    if (label === "Dashboard") navigate("/dashboard");
-    if (label === "Create Room") navigate("/create-room");
-    if (label === "Join Room") navigate("/join-room");
-    if (label === "My Rooms") navigate("/my-rooms");
-    if (label === "Profile") navigate("/profile");
-    if (label === "History") navigate("/history");
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;

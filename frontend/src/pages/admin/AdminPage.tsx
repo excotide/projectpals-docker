@@ -20,7 +20,7 @@ type WorkEnvironment = "private" | "public" | "online" | "flexible"
 interface DevMember {
   id: number
   primary_role: string
-  backup_role: string
+  backup_roles: string[]
   productivity_windows: ProductivityWindow[]
   environments: WorkEnvironment[]
 }
@@ -68,7 +68,7 @@ type DevTab = "simulator" | "create" | "inject" | "matched"
 interface InjectMember {
   user_id: number
   primary_role: string
-  backup_role: string
+  backup_roles: string[]
   productivity_windows: ProductivityWindow[]
   environments: WorkEnvironment[]
 }
@@ -100,7 +100,7 @@ interface InjectRoomInfo {
 interface SetupMember {
   user_id: number
   primary_role: string
-  backup_role: string
+  backup_roles: string[]
   productivity_windows: ProductivityWindow[]
   environments: WorkEnvironment[]
 }
@@ -232,17 +232,22 @@ function toggleEnvironment(list: WorkEnvironment[], e: WorkEnvironment): WorkEnv
 
 const DEFAULT_DEV_ROLES = ["Frontend", "Backend", "Designer"]
 
-function makeDevMember(id: number, primary = "", backup = ""): DevMember {
-  return { id, primary_role: primary, backup_role: backup, productivity_windows: [], environments: [] }
+// Add or remove a backup role from a member's ordered list of backup roles.
+function toggleBackupRole(list: string[], role: string): string[] {
+  return list.includes(role) ? list.filter((r) => r !== role) : [...list, role]
+}
+
+function makeDevMember(id: number, primary = "", backups: string[] = []): DevMember {
+  return { id, primary_role: primary, backup_roles: backups, productivity_windows: [], environments: [] }
 }
 
 const DEFAULT_DEV_MEMBERS: DevMember[] = [
-  { id: 1, primary_role: "Frontend", backup_role: "Designer", productivity_windows: ["morning"],   environments: ["online"] },
-  { id: 2, primary_role: "Backend", backup_role: "Frontend", productivity_windows: ["afternoon"], environments: ["online"] },
-  { id: 3, primary_role: "Designer", backup_role: "Frontend", productivity_windows: ["flexible"],  environments: ["flexible"] },
-  { id: 4, primary_role: "Backend", backup_role: "Designer", productivity_windows: ["evening"],   environments: ["private"] },
-  { id: 5, primary_role: "Frontend", backup_role: "Backend", productivity_windows: ["morning"],   environments: ["public"] },
-  { id: 6, primary_role: "Designer", backup_role: "Backend", productivity_windows: ["afternoon"], environments: ["private"] },
+  { id: 1, primary_role: "Frontend", backup_roles: ["Designer"], productivity_windows: ["morning"],   environments: ["online"] },
+  { id: 2, primary_role: "Backend", backup_roles: ["Frontend"], productivity_windows: ["afternoon"], environments: ["online"] },
+  { id: 3, primary_role: "Designer", backup_roles: ["Frontend"], productivity_windows: ["flexible"],  environments: ["flexible"] },
+  { id: 4, primary_role: "Backend", backup_roles: ["Designer"], productivity_windows: ["evening"],   environments: ["private"] },
+  { id: 5, primary_role: "Frontend", backup_roles: ["Backend"], productivity_windows: ["morning"],   environments: ["public"] },
+  { id: 6, primary_role: "Designer", backup_roles: ["Backend"], productivity_windows: ["afternoon"], environments: ["private"] },
 ]
 
 const USERS: UserRow[] = [
@@ -437,7 +442,7 @@ export default function AdminPage() {
     setDevMembers(devMembers.map((m) => ({
       ...m,
       primary_role: m.primary_role === role ? "" : m.primary_role,
-      backup_role: m.backup_role === role ? "" : m.backup_role,
+      backup_roles: m.backup_roles.filter((r) => r !== role),
     })))
   }
 
@@ -522,7 +527,7 @@ export default function AdminPage() {
       list.push({
         id: i + 1,
         primary_role: primary,
-        backup_role: backup,
+        backup_roles: backup && backup !== primary ? [backup] : [],
         productivity_windows: [w],
         environments: [e],
       })
@@ -560,7 +565,8 @@ export default function AdminPage() {
         members: devMembers.map((m) => ({
           id: m.id,
           primary_role: m.primary_role || null,
-          backup_role: m.backup_role || null,
+          backup_role: m.backup_roles[0] || null,
+          backup_roles: m.backup_roles,
           productivity_windows: m.productivity_windows,
           environments: m.environments,
         })),
@@ -602,7 +608,7 @@ export default function AdminPage() {
         next[Number(uid)] = {
           ...m,
           primary_role: m.primary_role === role ? "" : m.primary_role,
-          backup_role: m.backup_role === role ? "" : m.backup_role,
+          backup_roles: m.backup_roles.filter((r) => r !== role),
         }
       }
       return next
@@ -624,7 +630,7 @@ export default function AdminPage() {
         delete next[userId]
         if (setupOwnerId === userId) setSetupOwnerId("")
       } else {
-        next[userId] = { user_id: userId, primary_role: "", backup_role: "", productivity_windows: [], environments: [] }
+        next[userId] = { user_id: userId, primary_role: "", backup_roles: [], productivity_windows: [], environments: [] }
       }
       return next
     })
@@ -635,7 +641,7 @@ export default function AdminPage() {
       const next = { ...current }
       for (const u of filteredSetupUsers) {
         if (!next[u.id]) {
-          next[u.id] = { user_id: u.id, primary_role: "", backup_role: "", productivity_windows: [], environments: [] }
+          next[u.id] = { user_id: u.id, primary_role: "", backup_roles: [], productivity_windows: [], environments: [] }
         }
       }
       return next
@@ -663,7 +669,7 @@ export default function AdminPage() {
         next[uid] = {
           user_id: uid,
           primary_role: primary,
-          backup_role: backup,
+          backup_roles: backup && backup !== primary ? [backup] : [],
           productivity_windows: [window],
           environments: [env],
         }
@@ -751,7 +757,8 @@ export default function AdminPage() {
           members: memberList.map((m) => ({
             user_id: m.user_id,
             primary_role: m.primary_role || null,
-            backup_role: m.backup_role || null,
+            backup_role: m.backup_roles[0] || null,
+            backup_roles: m.backup_roles,
             productivity_windows: m.productivity_windows,
             environments: m.environments,
           })),
@@ -781,7 +788,7 @@ export default function AdminPage() {
         next[userId] = {
           user_id: userId,
           primary_role: "",
-          backup_role: "",
+          backup_roles: [],
           productivity_windows: ["flexible"],
           environments: ["flexible"],
         }
@@ -864,7 +871,7 @@ export default function AdminPage() {
         next[uid] = {
           user_id: uid,
           primary_role: primary,
-          backup_role: backup,
+          backup_roles: backup && backup !== primary ? [backup] : [],
           productivity_windows: [window],
           environments: [env],
         }
@@ -891,7 +898,8 @@ export default function AdminPage() {
           members: memberList.map((m) => ({
             user_id: m.user_id,
             primary_role: m.primary_role || null,
-            backup_role: m.backup_role || null,
+            backup_role: m.backup_roles[0] || null,
+            backup_roles: m.backup_roles,
             productivity_windows: m.productivity_windows,
             environments: m.environments,
           })),
@@ -1552,7 +1560,7 @@ export default function AdminPage() {
                       <tr>
                         <th style={{ width: 60 }}>ID</th>
                         <th>Primary role</th>
-                        <th>Backup role</th>
+                        <th>Backup roles</th>
                         <th>Productivity windows</th>
                         <th style={{ width: 80 }}>Action</th>
                       </tr>
@@ -1579,14 +1587,21 @@ export default function AdminPage() {
                             </select>
                           </td>
                           <td>
-                            <select
-                              className="form-input"
-                              value={member.backup_role}
-                              onChange={(event) => updateDevMember(member.id, { backup_role: event.target.value })}
-                            >
-                              <option value="">— none —</option>
-                              {devRoles.map((role) => <option key={role} value={role}>{role}</option>)}
-                            </select>
+                            <div className="dev-checks">
+                              {devRoles.filter((role) => role !== member.primary_role).map((role) => (
+                                <label key={role} className="dev-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={member.backup_roles.includes(role)}
+                                    onChange={() => updateDevMember(member.id, { backup_roles: toggleBackupRole(member.backup_roles, role) })}
+                                  />
+                                  <span>{role}</span>
+                                </label>
+                              ))}
+                              {devRoles.filter((role) => role !== member.primary_role).length === 0 && (
+                                <span className="muted" style={{ fontSize: 10 }}>—</span>
+                              )}
+                            </div>
                           </td>
                           <td>
                             <div className="dev-checks">
@@ -1921,15 +1936,22 @@ export default function AdminPage() {
                               </select>
                             </div>
                             <div>
-                              <label className="form-label" style={{ marginTop: 0 }}>Backup role</label>
-                              <select
-                                className="form-input"
-                                value={m.backup_role}
-                                onChange={(event) => updateSetupMember(m.user_id, { backup_role: event.target.value })}
-                              >
-                                <option value="">— none —</option>
-                                {setupRoles.map((role) => <option key={role} value={role}>{role}</option>)}
-                              </select>
+                              <label className="form-label" style={{ marginTop: 0 }}>Backup roles</label>
+                              <div className="dev-checks">
+                                {setupRoles.filter((role) => role !== m.primary_role).map((role) => (
+                                  <label key={role} className="dev-check">
+                                    <input
+                                      type="checkbox"
+                                      checked={m.backup_roles.includes(role)}
+                                      onChange={() => updateSetupMember(m.user_id, { backup_roles: toggleBackupRole(m.backup_roles, role) })}
+                                    />
+                                    <span>{role}</span>
+                                  </label>
+                                ))}
+                                {setupRoles.filter((role) => role !== m.primary_role).length === 0 && (
+                                  <span className="muted" style={{ fontSize: 10 }}>—</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="dev-checks" style={{ marginTop: 8 }}>
@@ -2214,22 +2236,29 @@ export default function AdminPage() {
                               )}
                             </div>
                             <div>
-                              <label className="form-label" style={{ marginTop: 0 }}>Backup role</label>
+                              <label className="form-label" style={{ marginTop: 0 }}>Backup roles</label>
                               {injectRoomInfo && injectRoomInfo.roles.length > 0 ? (
-                                <select
-                                  className="form-input"
-                                  value={m.backup_role}
-                                  onChange={(event) => updateInjectMember(m.user_id, { backup_role: event.target.value })}
-                                >
-                                  <option value="">— none —</option>
-                                  {injectRoomInfo.roles.map((role) => <option key={role} value={role}>{role}</option>)}
-                                </select>
+                                <div className="dev-checks">
+                                  {injectRoomInfo.roles.filter((role) => role !== m.primary_role).map((role) => (
+                                    <label key={role} className="dev-check">
+                                      <input
+                                        type="checkbox"
+                                        checked={m.backup_roles.includes(role)}
+                                        onChange={() => updateInjectMember(m.user_id, { backup_roles: toggleBackupRole(m.backup_roles, role) })}
+                                      />
+                                      <span>{role}</span>
+                                    </label>
+                                  ))}
+                                  {injectRoomInfo.roles.filter((role) => role !== m.primary_role).length === 0 && (
+                                    <span className="muted" style={{ fontSize: 10 }}>—</span>
+                                  )}
+                                </div>
                               ) : (
                                 <input
                                   className="form-input"
-                                  placeholder="optional"
-                                  value={m.backup_role}
-                                  onChange={(event) => updateInjectMember(m.user_id, { backup_role: event.target.value })}
+                                  placeholder="comma separated, optional"
+                                  value={m.backup_roles.join(", ")}
+                                  onChange={(event) => updateInjectMember(m.user_id, { backup_roles: event.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
                                 />
                               )}
                             </div>
