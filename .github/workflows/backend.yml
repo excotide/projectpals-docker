@@ -75,7 +75,7 @@ jobs:
           envs: REGISTRY,REPOSITORY,IMAGE_TAG,AWS_REGION,FIREBASE_SERVICE_ACCOUNT_B64
           script: |
             set -e
-            cd ~/projectpals
+            cd ~/projectpals-docker
             git pull --ff-only || true
             aws ecr get-login-password --region "$AWS_REGION" \
               | docker login --username AWS --password-stdin "$REGISTRY"
