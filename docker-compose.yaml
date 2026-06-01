@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: base
     image: projectpals-app:latest
     container_name: projectpals-app
     working_dir: /var/www/html

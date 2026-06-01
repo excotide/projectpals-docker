@@ -1,0 +1,97 @@
+# Production stack for a single EC2 host.
+#   - app/scheduler pull the prebuilt image from ECR (set BACKEND_IMAGE).
+#   - caddy terminates TLS (auto Let's Encrypt) and proxies to nginx.
+#   - Oracle runs in-container with a persisted named volume (back up via EBS snapshot).
+#
+# Usage on the server:
+#   export BACKEND_IMAGE=<account>.dkr.ecr.<region>.amazonaws.com/projectpals-backend:latest
+#   docker compose -f docker-compose.prod.yaml pull
+#   docker compose -f docker-compose.prod.yaml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: projectpals-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+    networks:
+      - projectpals
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: projectpals-nginx
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - projectpals
+
+  app:
+    image: ${BACKEND_IMAGE}
+    container_name: projectpals-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Inject the Firebase service account at runtime (kept out of the image).
+      - ./backend/storage/app/firebase:/var/www/html/storage/app/firebase
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - projectpals
+
+  scheduler:
+    image: ${BACKEND_IMAGE}
+    container_name: projectpals-scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/storage/app/firebase:/var/www/html/storage/app/firebase
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - projectpals
+
+  db:
+    image: gvenzl/oracle-free:latest
+    container_name: projectpals-db
+    restart: unless-stopped
+    # Reads ORACLE_PASSWORD (SYSTEM), APP_USER, APP_USER_PASSWORD from backend/.env.
+    # APP_USER/APP_USER_PASSWORD must equal DB_USERNAME/DB_PASSWORD used by the app.
+    env_file:
+      - ./backend/.env
+    volumes:
+      - dbdata:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+    networks:
+      - projectpals
+
+volumes:
+  dbdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  projectpals:
+    driver: bridge

@@ -1,4 +1,4 @@
-FROM php:8.5-fpm
+FROM php:8.5-fpm AS base
 
 # ── System dependencies ──────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
@@ -34,3 +34,20 @@ COPY docker/php/conf.d/performance.ini /usr/local/etc/php/conf.d/99-performance.
 COPY docker/php-fpm/zz-www.conf /usr/local/etc/php-fpm.d/zz-www.conf
 
 WORKDIR /var/www/html
+
+# ── Production image ──────────────────────────────────────────────
+# Bakes the application code + prod dependencies into the image so the EC2
+# host can simply pull from ECR (no bind-mount). The dev compose targets the
+# `base` stage instead and bind-mounts ./backend over this code.
+FROM base AS production
+
+# Install PHP deps first (better layer caching), then copy the rest of the app.
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+COPY . .
+
+RUN composer dump-autoload --optimize --no-dev \
+    && composer run-script post-autoload-dump --no-interaction \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwX storage bootstrap/cache

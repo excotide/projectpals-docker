@@ -1,0 +1,6 @@
+# Edge reverse proxy with automatic HTTPS (Let's Encrypt).
+# Replace api.example.com with your real API subdomain (A record → EC2 Elastic IP).
+api.example.com {
+    encode gzip
+    reverse_proxy nginx:80
+}

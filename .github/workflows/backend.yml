@@ -1,0 +1,96 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.prod.yaml'
+      - 'Caddyfile'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # for AWS OIDC
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          # oci8 is not needed for lint; DB-backed tests require an Oracle
+          # service and are intentionally not run here.
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --ignore-platform-req=ext-oci8
+
+      - name: Lint (Pint)
+        run: vendor/bin/pint --test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --target production \
+            -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$REPOSITORY:latest" \
+            ./backend
+          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$REPOSITORY:latest"
+
+      - name: Deploy to EC2 over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: REGISTRY,REPOSITORY,IMAGE_TAG,AWS_REGION,FIREBASE_SERVICE_ACCOUNT_B64
+          script: |
+            set -e
+            cd ~/projectpals
+            git pull --ff-only || true
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$REGISTRY"
+            export BACKEND_IMAGE="$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+            mkdir -p backend/storage/app/firebase
+            if [ -n "$FIREBASE_SERVICE_ACCOUNT_B64" ]; then
+              echo "$FIREBASE_SERVICE_ACCOUNT_B64" | base64 -d > backend/storage/app/firebase/service-account.json
+            fi
+            docker compose -f docker-compose.prod.yaml pull app scheduler
+            docker compose -f docker-compose.prod.yaml up -d
+            docker compose -f docker-compose.prod.yaml exec -T app php artisan migrate --force
+            docker compose -f docker-compose.prod.yaml exec -T app php artisan config:cache
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          FIREBASE_SERVICE_ACCOUNT_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}

@@ -1,0 +1,16 @@
+.git
+.gitignore
+vendor
+node_modules
+.env
+.env.*
+!.env.prod.example
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/firebase/*
+tests
+.phpunit.result.cache
+.phpunit.cache
+README.md

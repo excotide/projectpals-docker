@@ -30,7 +30,9 @@
       "Bash(php --version)",
       "Bash(grep -n \"FIREBASE_CREDENTIALS\\\\|FCM_REMINDER\" .env)",
       "Bash(grep -nE \"firebase|service-account|^/?storage\" .gitignore)",
-      "Bash(grep -nE \"^use \\(Illuminate\\\\\\\\\\\\\\\\Http\\\\\\\\\\\\\\\\Request|App\\\\\\\\\\\\\\\\Jobs\\)\" /d/PROYEK/SMT4/projectpals/backend/app/Http/Controllers/Api/RoomController.php)"
+      "Bash(grep -nE \"^use \\(Illuminate\\\\\\\\\\\\\\\\Http\\\\\\\\\\\\\\\\Request|App\\\\\\\\\\\\\\\\Jobs\\)\" /d/PROYEK/SMT4/projectpals/backend/app/Http/Controllers/Api/RoomController.php)",
+      "Bash(BACKEND_IMAGE=dummy:latest docker compose -f docker-compose.prod.yaml config -q)",
+      "Bash(python -c \"import yaml,sys; [yaml.safe_load\\(open\\(f\\)\\) and print\\(f,'OK'\\) for f in ['.github/workflows/backend.yml','.github/workflows/frontend.yml']]\")"
     ]
   }
 }
