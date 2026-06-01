@@ -1,6 +1,6 @@
 # Edge reverse proxy with automatic HTTPS (Let's Encrypt).
 # Replace api.example.com with your real API subdomain (A record → EC2 Elastic IP).
-api.exotide.app {
+api.excotide.app {
     encode gzip
     reverse_proxy nginx:80
 }
