@@ -81,13 +81,13 @@ class TeamFeedbackController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'team_id'              => $team->id,
-                'total_required'       => $totalRequired,
-                'total_given'          => $totalGiven,
-                'complete'             => $complete,
-                'my_room_member_id'    => $myMember?->room_member_id,
-                'my_complete'          => $myComplete,
-                'my_missing_targets'   => $myMissingTargets,
+                'team_id' => $team->id,
+                'total_required' => $totalRequired,
+                'total_given' => $totalGiven,
+                'complete' => $complete,
+                'my_room_member_id' => $myMember?->room_member_id,
+                'my_complete' => $myComplete,
+                'my_missing_targets' => $myMissingTargets,
                 'missing_contributors' => $missingContributors,
             ],
         ]);
@@ -107,8 +107,8 @@ class TeamFeedbackController extends Controller
 
         $data = $request->validate([
             'to_room_member_id' => ['required', 'integer'],
-            'rating'            => ['required', 'integer', 'between:1,5'],
-            'content'           => ['nullable', 'string', 'max:1000'],
+            'rating' => ['required', 'integer', 'between:1,5'],
+            'content' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $toRoomMemberId = (int) $data['to_room_member_id'];
@@ -137,13 +137,13 @@ class TeamFeedbackController extends Controller
 
         $feedback = TeamFeedback::updateOrCreate(
             [
-                'team_id'             => $team->id,
+                'team_id' => $team->id,
                 'from_room_member_id' => $myMember->room_member_id,
-                'to_room_member_id'   => $toRoomMemberId,
+                'to_room_member_id' => $toRoomMemberId,
             ],
             [
-                'rating'           => $data['rating'],
-                'content'          => $content,
+                'rating' => $data['rating'],
+                'content' => $content,
                 'to_assigned_role' => $targetMember->assigned_role,
             ],
         );
@@ -177,9 +177,9 @@ class TeamFeedbackController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'team_id'         => $team->id,
-                'room_member_id'  => $roomMemberId,
-                'feedbacks'       => $feedbacks->map(fn (TeamFeedback $f) => $this->format($f, withFromUser: true))->values(),
+                'team_id' => $team->id,
+                'room_member_id' => $roomMemberId,
+                'feedbacks' => $feedbacks->map(fn (TeamFeedback $f) => $this->format($f, withFromUser: true))->values(),
             ],
         ]);
     }
@@ -204,7 +204,7 @@ class TeamFeedbackController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'team_id'   => $team->id,
+                'team_id' => $team->id,
                 'feedbacks' => $feedbacks->map(fn (TeamFeedback $f) => $this->format($f))->values(),
             ],
         ]);
@@ -213,21 +213,21 @@ class TeamFeedbackController extends Controller
     private function format(TeamFeedback $f, bool $withFromUser = false): array
     {
         $arr = [
-            'id'                  => $f->id,
-            'team_id'             => $f->team_id,
+            'id' => $f->id,
+            'team_id' => $f->team_id,
             'from_room_member_id' => $f->from_room_member_id,
-            'to_room_member_id'   => $f->to_room_member_id,
-            'to_assigned_role'    => $f->to_assigned_role,
-            'rating'              => $f->rating !== null ? (int) $f->rating : null,
-            'content'             => $f->content,
-            'created_at'          => $f->created_at?->toIso8601String(),
-            'updated_at'          => $f->updated_at?->toIso8601String(),
+            'to_room_member_id' => $f->to_room_member_id,
+            'to_assigned_role' => $f->to_assigned_role,
+            'rating' => $f->rating !== null ? (int) $f->rating : null,
+            'content' => $f->content,
+            'created_at' => $f->created_at?->toIso8601String(),
+            'updated_at' => $f->updated_at?->toIso8601String(),
         ];
 
         if ($withFromUser && $f->fromRoomMember && $f->fromRoomMember->user) {
             $arr['from_user'] = [
-                'id'       => $f->fromRoomMember->user->id,
-                'name'     => $f->fromRoomMember->user->name,
+                'id' => $f->fromRoomMember->user->id,
+                'name' => $f->fromRoomMember->user->name,
                 'username' => $f->fromRoomMember->user->username,
             ];
         }

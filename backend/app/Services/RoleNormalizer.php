@@ -52,9 +52,9 @@ final class RoleNormalizer
         $canonical = $this->canonicalize($cleaned, $persist);
 
         return [
-            'original'   => $input,
+            'original' => $input,
             'normalized' => $canonical,
-            'changed'    => $canonical !== $cleaned,
+            'changed' => $canonical !== $cleaned,
         ];
     }
 
@@ -170,9 +170,9 @@ final class RoleNormalizer
             $response = Http::withToken($key)
                 ->timeout(10)
                 ->post(rtrim((string) config('services.groq.base_url'), '/').'/chat/completions', [
-                    'model'       => config('services.groq.model'),
-                    'messages'    => [['role' => 'user', 'content' => $prompt]],
-                    'max_tokens'  => 20,
+                    'model' => config('services.groq.model'),
+                    'messages' => [['role' => 'user', 'content' => $prompt]],
+                    'max_tokens' => 20,
                     'temperature' => 0.1,
                 ]);
 

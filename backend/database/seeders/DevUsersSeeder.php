@@ -35,9 +35,9 @@ class DevUsersSeeder extends Seeder
             $existing = User::query()->where('email', $email)->first();
 
             $payload = [
-                'name'              => "Dev User {$i}",
-                'username'          => "dev{$i}",
-                'password'          => $passwordHash,
+                'name' => "Dev User {$i}",
+                'username' => "dev{$i}",
+                'password' => $passwordHash,
                 'email_verified_at' => now(),
             ];
 

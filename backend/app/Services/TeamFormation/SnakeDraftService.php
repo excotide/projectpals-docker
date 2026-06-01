@@ -57,6 +57,7 @@ final class SnakeDraftService
             $teamNumber = $this->nextTeamFromSnake($teams, $kTeams, $maxPerGroup, $snakeIndex, $totalCapacity);
             if ($teamNumber === null) {
                 $unassigned[] = $memberId;
+
                 continue;
             }
 
@@ -100,6 +101,7 @@ final class SnakeDraftService
                 $member = $membersById[$memberId] ?? null;
                 if ($member === null) {
                     $unassigned[] = $memberId;   // safety net, should not happen
+
                     continue;
                 }
 
@@ -207,6 +209,7 @@ final class SnakeDraftService
 
             if (\count($teams[$teamNumber]) < $maxPerGroup) {
                 $snakeIndex = ($snakeIndex + $step + 1) % $period;
+
                 return $teamNumber;
             }
         }

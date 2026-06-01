@@ -22,7 +22,7 @@ class RoleController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Role normalized successfully.',
-            'data'    => $normalizer->preview($validated['role']),
+            'data' => $normalizer->preview($validated['role']),
         ]);
     }
 }

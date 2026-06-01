@@ -11,7 +11,7 @@ final class ProfileClusterService
 {
     /**
      * @param  array<int, array<string, mixed>>  $members
-     * @return array<int, array<int, array<string, mixed>>>  K clusters of members
+     * @return array<int, array<int, array<string, mixed>>> K clusters of members
      */
     public function cluster(array $members, int $kTeams, int $maxPerGroup): array
     {
@@ -93,7 +93,7 @@ final class ProfileClusterService
      * member with the lowest max-similarity to already chosen seeds.
      *
      * @param  array<int, array<string, mixed>>  $members
-     * @return array<int, int>  cluster index → member index
+     * @return array<int, int> cluster index → member index
      */
     private function pickSeeds(array $members, int $kTeams): array
     {

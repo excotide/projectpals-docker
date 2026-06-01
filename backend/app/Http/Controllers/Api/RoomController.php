@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\SendPushNotification;
 use App\Http\Requests\CreateRoomRequest;
 use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
+use App\Jobs\SendPushNotification;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Services\RoleNormalizer;
@@ -27,8 +27,8 @@ class RoomController extends Controller
         return [
             ...$room->toArray(),
             'owner' => $room->creator ? [
-                'id'       => $room->creator->id,
-                'name'     => $room->creator->name,
+                'id' => $room->creator->id,
+                'name' => $room->creator->name,
                 'username' => $room->creator->username,
             ] : null,
         ];
@@ -53,10 +53,10 @@ class RoomController extends Controller
             'success' => true,
             'message' => 'Room preview fetched successfully.',
             'data' => [
-                'room_code'     => $room->room_code,
+                'room_code' => $room->room_code,
                 'project_theme' => $room->project_theme,
-                'roles'         => $room->roles,
-                'status'        => $room->status,
+                'roles' => $room->roles,
+                'status' => $room->status,
             ],
         ]);
     }
@@ -68,9 +68,9 @@ class RoomController extends Controller
         $rooms = Room::query()
             ->where(function ($q) use ($userId): void {
                 $q->where('created_by', $userId)
-                  ->orWhereHas('members', function ($mq) use ($userId): void {
-                      $mq->where('user_id', $userId);
-                  });
+                    ->orWhereHas('members', function ($mq) use ($userId): void {
+                        $mq->where('user_id', $userId);
+                    });
             })
             ->with('creator')
             ->latest('id')
@@ -79,7 +79,7 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Rooms fetched successfully.',
-            'data'    => $rooms->map($this->roomData(...)),
+            'data' => $rooms->map($this->roomData(...)),
         ]);
     }
 
@@ -109,10 +109,10 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Room detail fetched successfully.',
-            'data'    => [
-                'room'   => $this->roomData($room),
+            'data' => [
+                'room' => $this->roomData($room),
                 'access' => [
-                    'is_owner'  => (int) $room->created_by === (int) $userId,
+                    'is_owner' => (int) $room->created_by === (int) $userId,
                     'is_member' => true,
                 ],
             ],
@@ -146,30 +146,30 @@ class RoomController extends Controller
             ->latest('id')
             ->get()
             ->map(fn (RoomMember $member) => [
-                'id'                  => $member->id,
-                'joined_at'           => $member->joined_at,
-                'primary_role'        => $member->primary_role,
-                'backup_role'         => $member->backup_role,
-                'backup_roles'        => $member->backup_roles,
+                'id' => $member->id,
+                'joined_at' => $member->joined_at,
+                'primary_role' => $member->primary_role,
+                'backup_role' => $member->backup_role,
+                'backup_roles' => $member->backup_roles,
                 'productivity_windows' => $member->productivity_windows,
-                'environments'        => $member->environments,
+                'environments' => $member->environments,
                 'user' => $member->user ? [
-                    'id'       => $member->user->id,
-                    'name'     => $member->user->name,
+                    'id' => $member->user->id,
+                    'name' => $member->user->name,
                     'username' => $member->user->username,
-                    'email'    => $member->user->email,
+                    'email' => $member->user->email,
                 ] : null,
             ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Joined room members fetched successfully.',
-            'data'    => [
+            'data' => [
                 'room' => [
-                    'id'            => $room->id,
-                    'room_code'     => $room->room_code,
+                    'id' => $room->id,
+                    'room_code' => $room->room_code,
                     'project_theme' => $room->project_theme,
-                    'status'        => $room->status,
+                    'status' => $room->status,
                 ],
                 'members' => $members,
             ],
@@ -212,6 +212,7 @@ class RoomController extends Controller
 
         if ($maxMembers < $groups * $roleCount) {
             $needed = $groups * $roleCount;
+
             return response()->json([
                 'success' => false,
                 'message' => "Max member room ({$maxMembers}) tidak cukup untuk mengisi semua role di setiap team. Butuh minimal {$needed} member ({$groups} team × {$roleCount} role).",
@@ -223,9 +224,9 @@ class RoomController extends Controller
         $room = Room::create([
             ...$validated,
             'productivity_windows' => $validated['productivity_windows'] ?? ['flexible'],
-            'environments'         => $validated['environments'] ?? ['flexible'],
-            'created_by'           => auth()->id(),
-            'room_code'            => Room::generateUniqueCode(),
+            'environments' => $validated['environments'] ?? ['flexible'],
+            'created_by' => auth()->id(),
+            'room_code' => Room::generateUniqueCode(),
         ])->refresh();
 
         $room->load('creator');
@@ -233,8 +234,8 @@ class RoomController extends Controller
         // Owner joins as a member unless they opted to only monitor the room.
         if (! $request->boolean('create_room_only')) {
             RoomMember::create([
-                'room_id'   => $room->id,
-                'user_id'   => auth()->id(),
+                'room_id' => $room->id,
+                'user_id' => auth()->id(),
                 'joined_at' => now(),
             ]);
         }
@@ -242,7 +243,7 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Room created successfully.',
-            'data'    => $this->roomData($room),
+            'data' => $this->roomData($room),
         ], 201);
     }
 
@@ -296,9 +297,9 @@ class RoomController extends Controller
                 ? "{$room->project_theme} — {$reason}"
                 : "Kamu dikeluarkan dari room {$room->project_theme}.",
             [
-                'type'      => 'kicked',
+                'type' => 'kicked',
                 'room_code' => (string) $room->room_code,
-                'reason'    => $reason,
+                'reason' => $reason,
             ],
         );
 
@@ -348,7 +349,7 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Room updated successfully.',
-            'data'    => $this->roomData($room),
+            'data' => $this->roomData($room),
         ]);
     }
 
@@ -447,7 +448,6 @@ class RoomController extends Controller
             ], 404);
         }
 
-
         $availableRoles = \is_array($room->roles) ? $room->roles : [];
 
         if (! empty($validated['primary_role']) && ! \in_array($validated['primary_role'], $availableRoles, true)) {
@@ -483,11 +483,11 @@ class RoomController extends Controller
             }
         }
 
-        $member->primary_role        = $validated['primary_role'] ?? $member->primary_role;
-        $member->backup_role         = $validated['backup_role'] ?? $member->backup_role;
-        $member->backup_roles        = $validated['backup_roles'] ?? $member->backup_roles;
+        $member->primary_role = $validated['primary_role'] ?? $member->primary_role;
+        $member->backup_role = $validated['backup_role'] ?? $member->backup_role;
+        $member->backup_roles = $validated['backup_roles'] ?? $member->backup_roles;
         $member->productivity_windows = $validated['productivity_windows'] ?? $member->productivity_windows;
-        $member->environments        = $validated['environments'] ?? $member->environments;
+        $member->environments = $validated['environments'] ?? $member->environments;
 
         if ($isNewMember) {
             $member->joined_at = now();
@@ -498,8 +498,8 @@ class RoomController extends Controller
         return response()->json([
             'success' => true,
             'message' => $isNewMember ? 'Joined room successfully.' : 'You are already in this room.',
-            'data'    => [
-                'room'   => $room,
+            'data' => [
+                'room' => $room,
                 'member' => $member,
             ],
         ]);

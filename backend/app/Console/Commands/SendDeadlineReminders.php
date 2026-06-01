@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Jobs\SendPushNotification;
 use App\Models\Team;
 use App\Models\TeamMember;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 
 class SendDeadlineReminders extends Command
@@ -42,7 +43,7 @@ class SendDeadlineReminders extends Command
                 ->all();
 
             if ($userIds !== []) {
-                $remaining = $now->diffForHumans($team->deadline, ['parts' => 2, 'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE]);
+                $remaining = $now->diffForHumans($team->deadline, ['parts' => 2, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]);
                 $name = (string) ($team->project_name ?: $team->room?->project_theme);
 
                 SendPushNotification::dispatch(
@@ -50,10 +51,10 @@ class SendDeadlineReminders extends Command
                     'Deadline mendekat',
                     "{$name} berakhir dalam {$remaining}. Selesaikan tugasmu!",
                     [
-                        'type'      => 'deadline_reminder',
+                        'type' => 'deadline_reminder',
                         'room_code' => (string) ($team->room?->room_code ?? ''),
-                        'team_id'   => (string) $team->id,
-                        'deadline'  => (string) $team->deadline?->toIso8601String(),
+                        'team_id' => (string) $team->id,
+                        'deadline' => (string) $team->deadline?->toIso8601String(),
                     ],
                 );
                 $sent++;

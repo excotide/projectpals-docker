@@ -26,33 +26,33 @@ class DevController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $users,
+            'data' => $users,
         ]);
     }
 
     public function simulateMatching(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'roles'                                => ['required', 'array', 'min:1'],
-            'roles.*'                              => ['string', 'max:100'],
-            'max_members'                          => ['sometimes', 'integer', 'min:1', 'max:1000'],
-            'max_per_group'                        => ['sometimes', 'integer', 'min:1', 'max:50'],
-            'number_of_groups'                     => ['required', 'integer', 'min:1', 'max:50'],
-            'productivity_windows'                 => ['sometimes', 'array'],
-            'productivity_windows.*'               => ['in:morning,afternoon,evening,flexible'],
-            'environments'                         => ['sometimes', 'array'],
-            'environments.*'                       => ['in:private,public,online,flexible'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['string', 'max:100'],
+            'max_members' => ['sometimes', 'integer', 'min:1', 'max:1000'],
+            'max_per_group' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'number_of_groups' => ['required', 'integer', 'min:1', 'max:50'],
+            'productivity_windows' => ['sometimes', 'array'],
+            'productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
+            'environments' => ['sometimes', 'array'],
+            'environments.*' => ['in:private,public,online,flexible'],
 
-            'members'                              => ['required', 'array', 'min:1', 'max:200'],
-            'members.*.id'                         => ['required', 'integer'],
-            'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
-            'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
-            'members.*.backup_roles'               => ['sometimes', 'array'],
-            'members.*.backup_roles.*'             => ['string', 'max:100'],
-            'members.*.productivity_windows'       => ['sometimes', 'array'],
-            'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
-            'members.*.environments'               => ['sometimes', 'array'],
-            'members.*.environments.*'             => ['in:private,public,online,flexible'],
+            'members' => ['required', 'array', 'min:1', 'max:200'],
+            'members.*.id' => ['required', 'integer'],
+            'members.*.primary_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles' => ['sometimes', 'array'],
+            'members.*.backup_roles.*' => ['string', 'max:100'],
+            'members.*.productivity_windows' => ['sometimes', 'array'],
+            'members.*.productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
+            'members.*.environments' => ['sometimes', 'array'],
+            'members.*.environments.*' => ['in:private,public,online,flexible'],
         ]);
 
         $numberOfGroups = (int) $validated['number_of_groups'];
@@ -65,23 +65,23 @@ class DevController extends Controller
             : (int) ($validated['max_per_group'] ?? 1);
 
         $room = [
-            'roles'                => array_values($validated['roles']),
+            'roles' => array_values($validated['roles']),
             'productivity_windows' => array_values($validated['productivity_windows'] ?? []),
-            'environments'         => array_values($validated['environments'] ?? []),
-            'max_per_group'        => $maxPerGroup,
-            'number_of_groups'     => $numberOfGroups,
+            'environments' => array_values($validated['environments'] ?? []),
+            'max_per_group' => $maxPerGroup,
+            'number_of_groups' => $numberOfGroups,
         ];
 
         $members = array_map(static function (array $m): array {
             $backupRoles = self::normalizeBackupRoles($m['backup_roles'] ?? null, $m['backup_role'] ?? null, $m['primary_role'] ?? null);
 
             return [
-                'id'                   => (int) $m['id'],
-                'primary_role'         => $m['primary_role'] ?? null,
-                'backup_role'          => $backupRoles[0] ?? ($m['backup_role'] ?? null),
-                'backup_roles'         => $backupRoles,
+                'id' => (int) $m['id'],
+                'primary_role' => $m['primary_role'] ?? null,
+                'backup_role' => $backupRoles[0] ?? ($m['backup_role'] ?? null),
+                'backup_roles' => $backupRoles,
                 'productivity_windows' => array_values($m['productivity_windows'] ?? []),
-                'environments'         => array_values($m['environments'] ?? []),
+                'environments' => array_values($m['environments'] ?? []),
             ];
         }, $validated['members']);
 
@@ -97,16 +97,16 @@ class DevController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Simulation finished.',
-            'data'    => [
+            'data' => [
                 'input' => [
-                    'room'    => $room,
+                    'room' => $room,
                     'members' => $members,
                 ],
                 'score_matrix' => $result['score_matrix'],
-                'teams'        => $result['teams'],
-                'unassigned'   => $result['unassigned'],
-                'trace'        => $result['trace'],
-                'meta'         => $result['meta'],
+                'teams' => $result['teams'],
+                'unassigned' => $result['unassigned'],
+                'trace' => $result['trace'],
+                'meta' => $result['meta'],
             ],
         ]);
     }
@@ -114,28 +114,28 @@ class DevController extends Controller
     public function createRoom(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'owner_user_id'                        => ['required', 'integer'],
-            'project_theme'                        => ['required', 'string', 'max:255'],
-            'roles'                                => ['required', 'array', 'min:1'],
-            'roles.*'                              => ['string', 'max:100'],
-            'max_members'                          => ['sometimes', 'integer', 'min:1', 'max:1000'],
-            'max_per_group'                        => ['sometimes', 'integer', 'min:1', 'max:50'],
-            'number_of_groups'                     => ['required', 'integer', 'min:1', 'max:50'],
-            'productivity_windows'                 => ['sometimes', 'array'],
-            'productivity_windows.*'               => ['in:morning,afternoon,evening,flexible'],
-            'environments'                         => ['sometimes', 'array'],
-            'environments.*'                       => ['in:private,public,online,flexible'],
+            'owner_user_id' => ['required', 'integer'],
+            'project_theme' => ['required', 'string', 'max:255'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['string', 'max:100'],
+            'max_members' => ['sometimes', 'integer', 'min:1', 'max:1000'],
+            'max_per_group' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'number_of_groups' => ['required', 'integer', 'min:1', 'max:50'],
+            'productivity_windows' => ['sometimes', 'array'],
+            'productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
+            'environments' => ['sometimes', 'array'],
+            'environments.*' => ['in:private,public,online,flexible'],
 
-            'members'                              => ['required', 'array', 'min:1', 'max:200'],
-            'members.*.user_id'                    => ['required', 'integer'],
-            'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
-            'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
-            'members.*.backup_roles'               => ['sometimes', 'array'],
-            'members.*.backup_roles.*'             => ['string', 'max:100'],
-            'members.*.productivity_windows'       => ['sometimes', 'array'],
-            'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
-            'members.*.environments'               => ['sometimes', 'array'],
-            'members.*.environments.*'             => ['in:private,public,online,flexible'],
+            'members' => ['required', 'array', 'min:1', 'max:200'],
+            'members.*.user_id' => ['required', 'integer'],
+            'members.*.primary_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles' => ['sometimes', 'array'],
+            'members.*.backup_roles.*' => ['string', 'max:100'],
+            'members.*.productivity_windows' => ['sometimes', 'array'],
+            'members.*.productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
+            'members.*.environments' => ['sometimes', 'array'],
+            'members.*.environments.*' => ['in:private,public,online,flexible'],
         ]);
 
         $ownerId = (int) $validated['owner_user_id'];
@@ -175,16 +175,16 @@ class DevController extends Controller
                     : (int) ($validated['max_per_group'] ?? 1);
 
                 $roomRow = Room::create([
-                    'created_by'           => $ownerId,
-                    'project_theme'        => (string) $validated['project_theme'],
-                    'room_code'            => Room::generateUniqueCode(),
-                    'roles'                => array_values($validated['roles']),
+                    'created_by' => $ownerId,
+                    'project_theme' => (string) $validated['project_theme'],
+                    'room_code' => Room::generateUniqueCode(),
+                    'roles' => array_values($validated['roles']),
                     'productivity_windows' => $validated['productivity_windows'] ?? ['flexible'],
-                    'environments'         => $validated['environments'] ?? ['flexible'],
-                    'max_per_group'        => $maxPerGroup,
-                    'max_members'          => $maxMembers,
-                    'number_of_groups'     => $numberOfGroups,
-                    'status'               => 'open',
+                    'environments' => $validated['environments'] ?? ['flexible'],
+                    'max_per_group' => $maxPerGroup,
+                    'max_members' => $maxMembers,
+                    'number_of_groups' => $numberOfGroups,
+                    'status' => 'open',
                 ])->refresh();
 
                 $createdMembers = 0;
@@ -199,22 +199,22 @@ class DevController extends Controller
                     $backupRoles = self::normalizeBackupRoles($m['backup_roles'] ?? null, $m['backup_role'] ?? null, $m['primary_role'] ?? null);
 
                     RoomMember::create([
-                        'room_id'              => $roomRow->id,
-                        'user_id'              => $userId,
-                        'primary_role'         => $m['primary_role'] ?? null,
-                        'backup_role'          => $backupRoles[0] ?? null,
-                        'backup_roles'         => $backupRoles,
+                        'room_id' => $roomRow->id,
+                        'user_id' => $userId,
+                        'primary_role' => $m['primary_role'] ?? null,
+                        'backup_role' => $backupRoles[0] ?? null,
+                        'backup_roles' => $backupRoles,
                         'productivity_windows' => $m['productivity_windows'] ?? [],
-                        'environments'         => $m['environments'] ?? [],
-                        'joined_at'            => now(),
+                        'environments' => $m['environments'] ?? [],
+                        'joined_at' => now(),
                     ]);
                     $createdMembers++;
                 }
 
                 return [
-                    'room_id'         => $roomRow->id,
-                    'room_code'       => $roomRow->room_code,
-                    'owner_id'        => $ownerId,
+                    'room_id' => $roomRow->id,
+                    'room_code' => $roomRow->room_code,
+                    'owner_id' => $ownerId,
                     'members_created' => $createdMembers,
                 ];
             });
@@ -228,7 +228,7 @@ class DevController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Room created. The owner can now run matching from the normal UI.',
-            'data'    => $created,
+            'data' => $created,
         ]);
     }
 
@@ -262,38 +262,38 @@ class DevController extends Controller
                 ->get()
                 ->map(static fn (RoomMember $rm) => [
                     'room_member_id' => $rm->id,
-                    'primary_role'   => $rm->primary_role,
-                    'backup_role'    => $rm->backup_role,
-                    'user'           => $rm->user ? [
-                        'id'       => $rm->user->id,
-                        'name'     => $rm->user->name,
+                    'primary_role' => $rm->primary_role,
+                    'backup_role' => $rm->backup_role,
+                    'user' => $rm->user ? [
+                        'id' => $rm->user->id,
+                        'name' => $rm->user->name,
                         'username' => $rm->user->username,
                     ] : null,
                 ])
                 ->values();
 
             return [
-                'id'               => $room->id,
-                'room_code'        => $room->room_code,
-                'project_theme'    => $room->project_theme,
-                'status'           => $room->status,
-                'max_per_group'    => $room->max_per_group,
-                'max_members'      => $room->max_members,
+                'id' => $room->id,
+                'room_code' => $room->room_code,
+                'project_theme' => $room->project_theme,
+                'status' => $room->status,
+                'max_per_group' => $room->max_per_group,
+                'max_members' => $room->max_members,
                 'number_of_groups' => $room->number_of_groups,
-                'owner'            => $room->creator ? [
-                    'id'       => $room->creator->id,
-                    'name'     => $room->creator->name,
+                'owner' => $room->creator ? [
+                    'id' => $room->creator->id,
+                    'name' => $room->creator->name,
                     'username' => $room->creator->username,
                 ] : null,
                 'teams' => $teams->map(static fn (Team $t) => [
                     'team_number' => $t->team_number,
-                    'members'     => $t->members->map(static fn ($tm) => [
+                    'members' => $t->members->map(static fn ($tm) => [
                         'room_member_id' => $tm->room_member_id,
-                        'assigned_role'  => $tm->assigned_role,
-                        'score'          => (float) $tm->score,
-                        'user'           => $tm->roomMember && $tm->roomMember->user ? [
-                            'id'       => $tm->roomMember->user->id,
-                            'name'     => $tm->roomMember->user->name,
+                        'assigned_role' => $tm->assigned_role,
+                        'score' => (float) $tm->score,
+                        'user' => $tm->roomMember && $tm->roomMember->user ? [
+                            'id' => $tm->roomMember->user->id,
+                            'name' => $tm->roomMember->user->name,
                             'username' => $tm->roomMember->user->username,
                         ] : null,
                     ])->values(),
@@ -304,7 +304,7 @@ class DevController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $payload,
+            'data' => $payload,
         ]);
     }
 
@@ -323,15 +323,15 @@ class DevController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'id'                   => $room->id,
-                'room_code'            => $room->room_code,
-                'project_theme'        => $room->project_theme,
-                'status'               => $room->status,
-                'roles'                => \is_array($room->roles) ? array_values($room->roles) : [],
+                'id' => $room->id,
+                'room_code' => $room->room_code,
+                'project_theme' => $room->project_theme,
+                'status' => $room->status,
+                'roles' => \is_array($room->roles) ? array_values($room->roles) : [],
                 'productivity_windows' => \is_array($room->productivity_windows) ? array_values($room->productivity_windows) : [],
-                'max_members'          => $room->max_members,
-                'number_of_groups'     => $room->number_of_groups,
-                'current_members'      => (int) RoomMember::query()->where('room_id', $room->id)->count(),
+                'max_members' => $room->max_members,
+                'number_of_groups' => $room->number_of_groups,
+                'current_members' => (int) RoomMember::query()->where('room_id', $room->id)->count(),
             ],
         ]);
     }
@@ -339,17 +339,17 @@ class DevController extends Controller
     public function injectMembers(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'room_code'                            => ['required', 'string', 'max:32'],
-            'members'                              => ['required', 'array', 'min:1', 'max:200'],
-            'members.*.user_id'                    => ['required', 'integer'],
-            'members.*.primary_role'               => ['nullable', 'string', 'max:100'],
-            'members.*.backup_role'                => ['nullable', 'string', 'max:100'],
-            'members.*.backup_roles'               => ['sometimes', 'array'],
-            'members.*.backup_roles.*'             => ['string', 'max:100'],
-            'members.*.productivity_windows'       => ['sometimes', 'array'],
-            'members.*.productivity_windows.*'     => ['in:morning,afternoon,evening,flexible'],
-            'members.*.environments'               => ['sometimes', 'array'],
-            'members.*.environments.*'             => ['in:private,public,online,flexible'],
+            'room_code' => ['required', 'string', 'max:32'],
+            'members' => ['required', 'array', 'min:1', 'max:200'],
+            'members.*.user_id' => ['required', 'integer'],
+            'members.*.primary_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_role' => ['nullable', 'string', 'max:100'],
+            'members.*.backup_roles' => ['sometimes', 'array'],
+            'members.*.backup_roles.*' => ['string', 'max:100'],
+            'members.*.productivity_windows' => ['sometimes', 'array'],
+            'members.*.productivity_windows.*' => ['in:morning,afternoon,evening,flexible'],
+            'members.*.environments' => ['sometimes', 'array'],
+            'members.*.environments.*' => ['in:private,public,online,flexible'],
         ]);
 
         $room = Room::query()
@@ -403,12 +403,14 @@ class DevController extends Controller
 
                     if (\in_array($userId, $alreadyMember, true)) {
                         $skipped[] = $userId;
+
                         continue;
                     }
 
                     $primary = $m['primary_role'] ?? null;
                     if ($primary !== null && $primary !== '' && ! \in_array($primary, $availableRoles, true)) {
                         $errors[] = ['user_id' => $userId, 'message' => 'Invalid primary_role for this room.'];
+
                         continue;
                     }
 
@@ -416,23 +418,25 @@ class DevController extends Controller
                     $invalidBackup = array_values(array_filter($backupRoles, static fn ($r) => ! \in_array($r, $availableRoles, true)));
                     if ($invalidBackup !== []) {
                         $errors[] = ['user_id' => $userId, 'message' => 'Invalid backup_role for this room: '.implode(', ', $invalidBackup)];
+
                         continue;
                     }
 
                     if ($cap !== null && $currentCount >= $cap) {
                         $errors[] = ['user_id' => $userId, 'message' => "Room sudah penuh ({$cap}/{$cap})."];
+
                         continue;
                     }
 
                     RoomMember::create([
-                        'room_id'              => $room->id,
-                        'user_id'              => $userId,
-                        'primary_role'         => $primary ?: null,
-                        'backup_role'          => $backupRoles[0] ?? null,
-                        'backup_roles'         => $backupRoles,
+                        'room_id' => $room->id,
+                        'user_id' => $userId,
+                        'primary_role' => $primary ?: null,
+                        'backup_role' => $backupRoles[0] ?? null,
+                        'backup_roles' => $backupRoles,
                         'productivity_windows' => $m['productivity_windows'] ?? [],
-                        'environments'         => $m['environments'] ?? [],
-                        'joined_at'            => now(),
+                        'environments' => $m['environments'] ?? [],
+                        'joined_at' => now(),
                     ]);
                     $injected[] = $userId;
                     $currentCount++;
@@ -449,15 +453,15 @@ class DevController extends Controller
             'success' => true,
             'message' => 'Inject completed.',
             'data' => [
-                'room_id'        => $room->id,
-                'room_code'      => $room->room_code,
-                'roles'          => $availableRoles,
+                'room_id' => $room->id,
+                'room_code' => $room->room_code,
+                'roles' => $availableRoles,
                 'injected_count' => \count($injected),
-                'injected'       => $injected,
-                'skipped'        => $skipped,
-                'errors'         => $errors,
-                'total_members'  => RoomMember::query()->where('room_id', $room->id)->count(),
-                'max_members'    => $room->max_members,
+                'injected' => $injected,
+                'skipped' => $skipped,
+                'errors' => $errors,
+                'total_members' => RoomMember::query()->where('room_id', $room->id)->count(),
+                'max_members' => $room->max_members,
             ],
         ]);
     }

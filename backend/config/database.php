@@ -133,7 +133,7 @@ return [
             'max_name_len' => env('ORA_MAX_NAME_LEN', 128),
             // Keep timeout low in dev so unreachable DB fails fast (no 60s hangs).
             'options' => extension_loaded('pdo_oci') ? array_filter([
-                \PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 5),
+                PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 5),
             ]) : [],
         ],
 

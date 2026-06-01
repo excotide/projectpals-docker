@@ -53,10 +53,10 @@ class CreateRoomRequest extends FormRequest
 
         $payload = [
             // Accept frontend payload naming while keeping DB schema in snake_case.
-            'project_theme'    => $this->input('project_theme', $this->input('name')),
+            'project_theme' => $this->input('project_theme', $this->input('name')),
             'number_of_groups' => $numberOfGroups,
-            'max_members'      => $maxMembers,
-            'max_per_group'    => $maxPerGroup,
+            'max_members' => $maxMembers,
+            'max_per_group' => $maxPerGroup,
             'create_room_only' => filter_var($this->input('create_room_only', false), FILTER_VALIDATE_BOOL),
         ];
 

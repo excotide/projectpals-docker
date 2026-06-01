@@ -22,8 +22,8 @@ class FcmTokenController extends Controller
         FcmToken::query()->updateOrCreate(
             ['token' => $data['token']],
             [
-                'user_id'      => auth()->id(),
-                'platform'     => $data['platform'] ?? null,
+                'user_id' => auth()->id(),
+                'platform' => $data['platform'] ?? null,
                 'last_used_at' => now(),
             ],
         );

@@ -57,8 +57,8 @@ class TeamTargetController extends Controller
         }
 
         $data = $request->validate([
-            'role'     => ['required', 'string', 'max:100'],
-            'title'    => ['required', 'string', 'max:255'],
+            'role' => ['required', 'string', 'max:100'],
+            'title' => ['required', 'string', 'max:255'],
             'deadline' => ['nullable', 'date'],
         ]);
 
@@ -81,10 +81,10 @@ class TeamTargetController extends Controller
             ->max('sort_order');
 
         $target = TeamRoleTarget::create([
-            'team_id'    => $team->id,
-            'role'       => $data['role'],
-            'title'      => $data['title'],
-            'deadline'   => $data['deadline'] ?? null,
+            'team_id' => $team->id,
+            'role' => $data['role'],
+            'title' => $data['title'],
+            'deadline' => $data['deadline'] ?? null,
             'sort_order' => $maxOrder + 1,
         ]);
 
@@ -111,7 +111,7 @@ class TeamTargetController extends Controller
         }
 
         $data = $request->validate([
-            'title'    => ['sometimes', 'string', 'max:255'],
+            'title' => ['sometimes', 'string', 'max:255'],
             'deadline' => ['sometimes', 'nullable', 'date'],
         ]);
 
@@ -192,7 +192,7 @@ class TeamTargetController extends Controller
 
         $newIsDone = ! $target->is_done;
         $target->update([
-            'is_done'      => $newIsDone,
+            'is_done' => $newIsDone,
             'completed_at' => $newIsDone ? now() : null,
         ]);
 
@@ -237,13 +237,13 @@ class TeamTargetController extends Controller
     private function format(TeamRoleTarget $t): array
     {
         return [
-            'id'           => $t->id,
-            'team_id'      => $t->team_id,
-            'role'         => $t->role,
-            'title'        => $t->title,
-            'is_done'      => (bool) $t->is_done,
-            'sort_order'   => (int) $t->sort_order,
-            'deadline'     => $t->deadline?->toIso8601String(),
+            'id' => $t->id,
+            'team_id' => $t->team_id,
+            'role' => $t->role,
+            'title' => $t->title,
+            'is_done' => (bool) $t->is_done,
+            'sort_order' => (int) $t->sort_order,
+            'deadline' => $t->deadline?->toIso8601String(),
             'completed_at' => $t->completed_at?->toIso8601String(),
         ];
     }

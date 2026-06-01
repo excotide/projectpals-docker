@@ -28,7 +28,7 @@ class ProfileController extends Controller
                 'success' => true,
                 'data' => [
                     'role_ratings' => [],
-                    'feedbacks'    => [],
+                    'feedbacks' => [],
                 ],
             ]);
         }
@@ -42,9 +42,9 @@ class ProfileController extends Controller
             ->selectRaw('to_assigned_role as role, AVG(rating) as avg_rating, COUNT(*) as cnt')
             ->get()
             ->map(static fn ($row) => [
-                'role'       => (string) $row->role,
+                'role' => (string) $row->role,
                 'avg_rating' => round((float) $row->avg_rating, 2),
-                'count'      => (int) $row->cnt,
+                'count' => (int) $row->cnt,
             ])
             ->values();
 
@@ -56,14 +56,14 @@ class ProfileController extends Controller
             ->get()
             ->map(static function (TeamFeedback $f): array {
                 return [
-                    'id'               => $f->id,
+                    'id' => $f->id,
                     'to_assigned_role' => $f->to_assigned_role,
-                    'rating'           => $f->rating !== null ? (int) $f->rating : null,
-                    'content'          => $f->content,
-                    'created_at'       => $f->created_at?->toIso8601String(),
-                    'from_user'        => $f->fromRoomMember && $f->fromRoomMember->user ? [
-                        'id'       => $f->fromRoomMember->user->id,
-                        'name'     => $f->fromRoomMember->user->name,
+                    'rating' => $f->rating !== null ? (int) $f->rating : null,
+                    'content' => $f->content,
+                    'created_at' => $f->created_at?->toIso8601String(),
+                    'from_user' => $f->fromRoomMember && $f->fromRoomMember->user ? [
+                        'id' => $f->fromRoomMember->user->id,
+                        'name' => $f->fromRoomMember->user->name,
                         'username' => $f->fromRoomMember->user->username,
                     ] : null,
                 ];
@@ -74,7 +74,7 @@ class ProfileController extends Controller
             'success' => true,
             'data' => [
                 'role_ratings' => $roleRatings,
-                'feedbacks'    => $feedbacks,
+                'feedbacks' => $feedbacks,
             ],
         ]);
     }

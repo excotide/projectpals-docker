@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendPushNotification;
 use App\Models\Room;
+use App\Models\RoomMember;
 use App\Models\Team;
 use App\Models\TeamFeedback;
 use App\Models\TeamMember;
-use App\Models\RoomMember;
 use App\Services\TeamFormation\TeamFormationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,12 +65,12 @@ class MatchingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
+            'data' => [
                 'room' => [
-                    'id'            => $room->id,
-                    'room_code'     => $room->room_code,
+                    'id' => $room->id,
+                    'room_code' => $room->room_code,
                     'project_theme' => $room->project_theme,
-                    'status'        => $room->status,
+                    'status' => $room->status,
                     'max_per_group' => $room->max_per_group,
                     'number_of_groups' => $room->number_of_groups,
                 ],
@@ -134,6 +134,7 @@ class MatchingController extends Controller
 
         if ($memberCount < $teamCount * $roleCount) {
             $needed = $teamCount * $roleCount;
+
             return response()->json([
                 'success' => false,
                 'message' => "Butuh minimal {$needed} anggota ({$teamCount} team × {$roleCount} role) agar semua role tercover di setiap team. Saat ini {$memberCount} anggota.",
@@ -192,6 +193,7 @@ class MatchingController extends Controller
 
                     $primaryMatchers = array_values(array_filter($created, function (array $entry) use ($roomMembersById): bool {
                         $rm = $roomMembersById[$entry['pick']['member_id']] ?? null;
+
                         return $rm && $entry['pick']['assigned_role'] === $rm->primary_role;
                     }));
 
@@ -239,8 +241,8 @@ class MatchingController extends Controller
                 'Tim kamu sudah terbentuk!',
                 "{$room->project_theme} — kamu di Team {$team->team_number}",
                 [
-                    'type'        => 'matching_done',
-                    'room_code'   => (string) $room->room_code,
+                    'type' => 'matching_done',
+                    'room_code' => (string) $room->room_code,
                     'team_number' => (string) $team->team_number,
                 ],
             );
@@ -262,7 +264,7 @@ class MatchingController extends Controller
      * assigned role, across all teams/rooms. Used to prioritize role assignment.
      *
      * @param  array<int, int>  $userIds
-     * @return array<int, array<string, float>>  [user_id][role] => avg rating (1-5)
+     * @return array<int, array<string, float>> [user_id][role] => avg rating (1-5)
      */
     private function roleReputationMap(array $userIds): array
     {
@@ -293,13 +295,13 @@ class MatchingController extends Controller
     public function formatTeam(Team $t): array
     {
         return [
-            'id'           => $t->id,
-            'team_number'  => $t->team_number,
+            'id' => $t->id,
+            'team_number' => $t->team_number,
             'project_name' => $t->project_name,
-            'description'  => $t->description,
-            'deadline'     => $t->deadline?->toIso8601String(),
-            'finished_at'  => $t->finished_at?->toIso8601String(),
-            'members'      => $t->members->map([$this, 'formatTeamMember'])->values(),
+            'description' => $t->description,
+            'deadline' => $t->deadline?->toIso8601String(),
+            'finished_at' => $t->finished_at?->toIso8601String(),
+            'members' => $t->members->map([$this, 'formatTeamMember'])->values(),
         ];
     }
 
@@ -310,14 +312,14 @@ class MatchingController extends Controller
     {
         return [
             'room_member_id' => $tm->room_member_id,
-            'assigned_role'  => $tm->assigned_role,
-            'score'          => (float) $tm->score,
-            'is_leader'      => (bool) $tm->is_leader,
-            'primary_role'   => $tm->roomMember?->primary_role,
-            'backup_role'    => $tm->roomMember?->backup_role,
-            'user'           => $tm->roomMember && $tm->roomMember->user ? [
-                'id'       => $tm->roomMember->user->id,
-                'name'     => $tm->roomMember->user->name,
+            'assigned_role' => $tm->assigned_role,
+            'score' => (float) $tm->score,
+            'is_leader' => (bool) $tm->is_leader,
+            'primary_role' => $tm->roomMember?->primary_role,
+            'backup_role' => $tm->roomMember?->backup_role,
+            'user' => $tm->roomMember && $tm->roomMember->user ? [
+                'id' => $tm->roomMember->user->id,
+                'name' => $tm->roomMember->user->name,
                 'username' => $tm->roomMember->user->username,
             ] : null,
         ];
@@ -330,11 +332,11 @@ class MatchingController extends Controller
     {
         return [
             'room_member_id' => $rm->id,
-            'primary_role'   => $rm->primary_role,
-            'backup_role'    => $rm->backup_role,
-            'user'           => $rm->user ? [
-                'id'       => $rm->user->id,
-                'name'     => $rm->user->name,
+            'primary_role' => $rm->primary_role,
+            'backup_role' => $rm->backup_role,
+            'user' => $rm->user ? [
+                'id' => $rm->user->id,
+                'name' => $rm->user->name,
                 'username' => $rm->user->username,
             ] : null,
         ];
@@ -351,8 +353,8 @@ class MatchingController extends Controller
 
         $data = $request->validate([
             'project_name' => ['nullable', 'string', 'max:150'],
-            'description'  => ['nullable', 'string'],
-            'deadline'     => ['nullable', 'date'],
+            'description' => ['nullable', 'string'],
+            'deadline' => ['nullable', 'date'],
         ]);
 
         $payload = [];
@@ -369,12 +371,12 @@ class MatchingController extends Controller
             'success' => true,
             'message' => 'Project updated.',
             'data' => [
-                'id'           => $team->id,
-                'team_number'  => $team->team_number,
+                'id' => $team->id,
+                'team_number' => $team->team_number,
                 'project_name' => $team->project_name,
-                'description'  => $team->description,
-                'deadline'     => $team->deadline?->toIso8601String(),
-                'finished_at'  => $team->finished_at?->toIso8601String(),
+                'description' => $team->description,
+                'deadline' => $team->deadline?->toIso8601String(),
+                'finished_at' => $team->finished_at?->toIso8601String(),
             ],
         ]);
     }
@@ -412,7 +414,7 @@ class MatchingController extends Controller
         if ($memberCount > 1) {
             $expectedPerMember = $memberCount - 1;
 
-            $rows = \App\Models\TeamFeedback::query()
+            $rows = TeamFeedback::query()
                 ->where('team_id', $team->id)
                 ->whereIn('from_room_member_id', $memberIds)
                 ->whereIn('to_room_member_id', $memberIds)
@@ -461,9 +463,9 @@ class MatchingController extends Controller
                 'Proyek selesai',
                 trim((string) ($team->project_name ?: $room?->project_theme)).' telah ditandai selesai.',
                 [
-                    'type'      => 'room_completed',
+                    'type' => 'room_completed',
                     'room_code' => (string) ($room?->room_code ?? ''),
-                    'team_id'   => (string) $team->id,
+                    'team_id' => (string) $team->id,
                 ],
             );
         }
@@ -472,9 +474,9 @@ class MatchingController extends Controller
             'success' => true,
             'message' => 'Project marked as finished.',
             'data' => [
-                'id'          => $team->id,
+                'id' => $team->id,
                 'finished_at' => $team->finished_at?->toIso8601String(),
-                'deadline'    => $team->deadline?->toIso8601String(),
+                'deadline' => $team->deadline?->toIso8601String(),
             ],
         ]);
     }
@@ -523,7 +525,7 @@ class MatchingController extends Controller
             'message' => 'Member role updated.',
             'data' => [
                 'room_member_id' => $member->room_member_id,
-                'assigned_role'  => $member->assigned_role,
+                'assigned_role' => $member->assigned_role,
             ],
         ]);
     }
@@ -582,14 +584,14 @@ class MatchingController extends Controller
                 'team_number' => $team->team_number,
                 'members' => $team->members->map(fn (TeamMember $tm) => [
                     'room_member_id' => $tm->room_member_id,
-                    'assigned_role'  => $tm->assigned_role,
-                    'score'          => (float) $tm->score,
-                    'is_leader'      => (bool) $tm->is_leader,
-                    'primary_role'   => $tm->roomMember?->primary_role,
-                    'backup_role'    => $tm->roomMember?->backup_role,
-                    'user'           => $tm->roomMember && $tm->roomMember->user ? [
-                        'id'       => $tm->roomMember->user->id,
-                        'name'     => $tm->roomMember->user->name,
+                    'assigned_role' => $tm->assigned_role,
+                    'score' => (float) $tm->score,
+                    'is_leader' => (bool) $tm->is_leader,
+                    'primary_role' => $tm->roomMember?->primary_role,
+                    'backup_role' => $tm->roomMember?->backup_role,
+                    'user' => $tm->roomMember && $tm->roomMember->user ? [
+                        'id' => $tm->roomMember->user->id,
+                        'name' => $tm->roomMember->user->name,
                         'username' => $tm->roomMember->user->username,
                     ] : null,
                 ])->values(),

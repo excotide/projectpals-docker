@@ -17,7 +17,7 @@ class StoreFcmTokenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'token'    => ['required', 'string', 'max:512'],
+            'token' => ['required', 'string', 'max:512'],
             'platform' => ['nullable', 'in:web,android,ios'],
         ];
     }

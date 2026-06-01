@@ -12,7 +12,7 @@ class RegisterRequest extends FormRequest
 
         if (is_string($username) && $username !== '' && $username[0] !== '@') {
             $this->merge([
-                'username' => '@' . $username,
+                'username' => '@'.$username,
             ]);
         }
     }

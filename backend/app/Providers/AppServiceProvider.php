@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\TeamFormation\ScoringService;
+use App\Services\TeamFormation\SnakeDraftService;
+use App\Services\TeamFormation\TeamFormationService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,9 +14,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(\App\Services\TeamFormation\ScoringService::class);
-        $this->app->singleton(\App\Services\TeamFormation\SnakeDraftService::class);
-        $this->app->singleton(\App\Services\TeamFormation\TeamFormationService::class);
+        $this->app->singleton(ScoringService::class);
+        $this->app->singleton(SnakeDraftService::class);
+        $this->app->singleton(TeamFormationService::class);
     }
 
     /**

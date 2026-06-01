@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Middleware\AdminSessionAuth;
+use App\Http\Middleware\ForceJsonResponse;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,17 +18,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->replaceInGroup(
             'web',
-            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-            \App\Http\Middleware\VerifyCsrfToken::class
+            ValidateCsrfToken::class,
+            VerifyCsrfToken::class
         );
         $middleware->replaceInGroup(
             'web',
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
-            \App\Http\Middleware\VerifyCsrfToken::class
+            Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            VerifyCsrfToken::class
         );
-        $middleware->appendToGroup('api', \App\Http\Middleware\ForceJsonResponse::class);
+        $middleware->appendToGroup('api', ForceJsonResponse::class);
         $middleware->alias([
-            'admin.session' => \App\Http\Middleware\AdminSessionAuth::class,
+            'admin.session' => AdminSessionAuth::class,
         ]);
 
         $middleware->redirectGuestsTo(function ($request): ?string {
