@@ -77,7 +77,7 @@ services:
     env_file:
       - ./backend/.env
     ports:
-      - "1521:1521"
+      - "1523:1521"
     volumes:
       - dbdata:/opt/oracle/oradata
     healthcheck:
