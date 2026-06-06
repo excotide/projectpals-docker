@@ -76,6 +76,8 @@ services:
     # APP_USER/APP_USER_PASSWORD must equal DB_USERNAME/DB_PASSWORD used by the app.
     env_file:
       - ./backend/.env
+    ports:
+      - "1521:1521"
     volumes:
       - dbdata:/opt/oracle/oradata
     healthcheck:
