@@ -78,7 +78,7 @@ export default function MatchedRoomOverview() {
           ]}
         />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {isLoading && (
             <div className="bg-pp-card border border-pp-border rounded-2xl px-6 py-12 text-center text-slate-500 text-sm">
               Loading room data...

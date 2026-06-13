@@ -101,9 +101,9 @@ export default function HistoryPage() {
           ]}
         />
 
-        <main className="flex-1 overflow-y-auto p-8 pb-10">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-10">
           <div className="mb-7">
-            <h1 className="text-[28px] font-bold m-0 text-slate-50">History</h1>
+            <h1 className="text-2xl sm:text-[28px] font-bold m-0 text-slate-50">History</h1>
             <p className="mt-1.5 text-[13px] text-slate-500">
               Completed teams you were part of, plus the average rating you gave inside each team.
             </p>

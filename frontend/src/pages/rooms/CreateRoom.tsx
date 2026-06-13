@@ -374,7 +374,7 @@ export default function CreateRoom() {
             { label: "Create Room" },
           ]}
         />
-        <main className="flex-1 overflow-y-auto px-8 py-7 pb-10">{content}</main>
+        <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-7 pb-10">{content}</main>
       </div>
     </div>
   );
@@ -517,7 +517,7 @@ export default function CreateRoom() {
         </div>
       )}
 
-      <div className="grid gap-5 items-start" style={{ gridTemplateColumns: "1fr 380px" }}>
+      <div className="grid gap-5 items-start lg:grid-cols-[1fr_380px]">
         {/* ── Card 1: Project Identity ── */}
         <div className="bg-pp-card border border-pp-border rounded-2xl p-7">
           <div className="flex items-center gap-2.5 mb-6">
@@ -632,7 +632,7 @@ export default function CreateRoom() {
         </div>
 
         {/* ── Card 2: Project Scale (row-span-2) ── */}
-        <div className="bg-pp-card border border-pp-border rounded-2xl p-7 row-span-2">
+        <div className="bg-pp-card border border-pp-border rounded-2xl p-7 lg:row-span-2">
           <div className="flex items-center gap-2.5 mb-6">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>

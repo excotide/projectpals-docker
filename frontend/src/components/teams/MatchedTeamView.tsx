@@ -325,8 +325,8 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
   };
 
   return (
-    <div className="flex gap-6">
-      <div className="flex-1 space-y-6">
+    <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 min-w-0 space-y-6">
         <section className="bg-pp-card border border-pp-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -410,7 +410,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
             <p className="text-sm text-slate-500">Belum ada anggota pada team ini.</p>
           )}
           {teamMembers.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {teamMembers.map((member) => {
                 const name = member.user?.name ?? "Unknown";
                 const color = getAvatarColor(name);
@@ -503,7 +503,7 @@ export default function MatchedTeamView({ team, roomCode, roomRoles, roomInfo }:
         </section>
       </div>
 
-      <aside className="w-[320px] shrink-0 space-y-4">
+      <aside className="w-full lg:w-[320px] lg:shrink-0 space-y-4">
         <section className="bg-pp-card border border-pp-border rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold">Target Tim</h3>

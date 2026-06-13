@@ -140,10 +140,10 @@ export default function Dashboard() {
         />
 
         {/* ── Page content ── */}
-        <main className="flex-1 overflow-y-auto p-8 pb-10">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-10">
           {/* Welcome */}
           <div className="mb-7">
-            <h1 className="text-[28px] font-bold m-0 text-slate-50">
+            <h1 className="text-2xl sm:text-[28px] font-bold m-0 text-slate-50">
               Welcome back, {displayName}!
             </h1>
             <p className="mt-1.5 text-[13px] text-slate-500">
@@ -152,7 +152,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Action cards ── */}
-          <div className="grid grid-cols-2 gap-5 mb-9">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-9">
             {/* Create Room card */}
             <div className="relative overflow-hidden rounded-2xl border border-pp-border p-7 bg-[linear-gradient(145deg,#101d36,#0f1c35)]">
               {/* Decorative ring */}
@@ -261,7 +261,7 @@ export default function Dashboard() {
 
             {/* Grid */}
             {!roomsLoading && !roomsError && rooms.length > 0 && (
-              <div className="grid grid-cols-3 gap-[18px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-[18px]">
                 {rooms.map((room) => (
                   <RoomCard
                     key={room.id}

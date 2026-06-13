@@ -124,7 +124,7 @@ export default function ProfilePage() {
           ]}
         />
 
-        <main className="flex-1 overflow-y-auto p-8 pb-10">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-10">
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-6">
             <div className="space-y-6">
               <section className="bg-pp-card border border-pp-border rounded-2xl px-6 py-7">

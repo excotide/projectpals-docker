@@ -498,7 +498,7 @@ export default function DetailMemberRoom() {
           />
 
           {/* ── Content ─────────────────────────────────────────────────────── */}
-          <main className="flex-1 overflow-y-auto p-6 space-y-5">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
             {isLoading && (
               <div className="bg-pp-card border border-pp-border rounded-2xl px-6 py-12 text-center text-slate-500 text-sm">
@@ -527,7 +527,7 @@ export default function DetailMemberRoom() {
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                     <InfoBlock label="Roles">
                       <div className="flex flex-wrap gap-1.5">
                         {allRoles.length === 0
@@ -579,7 +579,7 @@ export default function DetailMemberRoom() {
 
                     {!teamsQuery.isLoading && teamsQuery.data && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {teamsQuery.data.teams.map((team) => {
                             const containsMe = team.members.some(tm => String(tm.user?.id) === String(user?.id));
                             return (
@@ -657,10 +657,10 @@ export default function DetailMemberRoom() {
 
                 {/* ── Bottom row (members + my profile) — hidden when matched ───────── */}
                 {!isMatched && (
-                <div className="flex gap-5">
+                <div className="flex flex-col lg:flex-row gap-5">
 
                   {/* Members list */}
-                  <section className="flex-1 bg-pp-card border border-pp-border rounded-2xl p-5">
+                  <section className="flex-1 min-w-0 bg-pp-card border border-pp-border rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-semibold text-white">Members in This Room</h3>
@@ -700,7 +700,7 @@ export default function DetailMemberRoom() {
                   </section>
 
                   {/* Your Profile in Room */}
-                  <aside className="w-72 shrink-0 bg-pp-card border border-pp-border rounded-2xl p-5 flex flex-col">
+                  <aside className="w-full lg:w-72 lg:shrink-0 bg-pp-card border border-pp-border rounded-2xl p-5 flex flex-col">
                     <div className="flex items-center gap-2 pb-4 border-b border-pp-border mb-4">
                       <IconUser />
                       <h3 className="text-sm font-bold text-white">Your Profile in Room</h3>

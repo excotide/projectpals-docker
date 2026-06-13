@@ -16,6 +16,7 @@ import AdminRoute from "./components/admin/AdminRoute"
 import { AdminAuthProvider } from "./hooks/useAdminAuth"
 import { ADMIN_PREFIX } from "./lib/adminApi"
 import FcmRegistrar from "./components/FcmRegistrar"
+import { MobileNavProvider } from "./hooks/useMobileNav"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem("token")
@@ -33,6 +34,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <FcmRegistrar />
+      <MobileNavProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<AuthPage />} />
@@ -120,6 +122,7 @@ export default function App() {
           )}
         />
       </Routes>
+      </MobileNavProvider>
     </BrowserRouter>
   )
 }

@@ -213,7 +213,7 @@ export default function JoinRoom() {
             { label: "Join Room" },
           ]}
         />
-        <main className="flex-1 overflow-y-auto px-8 py-7 pb-10">{content}</main>
+        <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-7 pb-10">{content}</main>
       </div>
     </div>
   );

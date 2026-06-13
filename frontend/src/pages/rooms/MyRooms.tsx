@@ -225,11 +225,11 @@ export default function MyRooms() {
         />
 
         {/* ── Content ── */}
-        <main className="flex-1 overflow-y-auto p-8 pb-10">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-10">
           {/* Header */}
           <div className="mb-7">
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-[28px] font-bold m-0 text-slate-50">My Rooms</h1>
+              <h1 className="text-2xl sm:text-[28px] font-bold m-0 text-slate-50">My Rooms</h1>
               {!roomsLoading && !roomsError && (
                 <span className="bg-pp-border text-slate-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                   {rooms.length}

@@ -1,0 +1,207 @@
+ALUR VIDEO DEMO PROJECTPALS
+============================
+POV: User baru dari Register hingga Project Selesai
+Estimasi durasi: ~8 menit
+
+
+==================================================
+TUJUAN PROJECTPALS
+==================================================
+ProjectPals adalah platform kolaborasi tim yang dirancang untuk membantu
+mahasiswa dan profesional muda dalam membentuk tim proyek yang ideal secara
+otomatis menggunakan sistem smart matching.
+
+Masalah yang diselesaikan:
+- Sulitnya menemukan anggota tim yang memiliki skill dan ketersediaan waktu
+  yang cocok
+- Ketidaksesuaian peran dalam tim yang sering menyebabkan proyek tidak optimal
+- Tidak adanya sistem terstruktur untuk memantau progres dan memberikan
+  feedback antar anggota tim
+
+Solusi yang ditawarkan:
+- Smart Matching Engine yang mencocokkan anggota tim berdasarkan peran,
+  ketersediaan waktu, dan preferensi lingkungan kerja
+- Manajemen target/milestone per peran untuk memantau progres proyek
+- Sistem feedback peer-to-peer berbasis rating untuk evaluasi kolaborasi
+- Riwayat proyek dan statistik performa kolaborasi setiap user
+
+Target pengguna:
+- Mahasiswa yang mengerjakan proyek kelompok atau capstone
+- Tim kecil yang membutuhkan struktur kolaborasi yang jelas
+
+
+==================================================
+Scene 1: Landing Page (0:00 - 0:30)
+==================================================
+Yang ditampilkan:
+- Scroll landing page dari atas ke bawah secara perlahan
+- Tunjukkan hero section: animasi karakter, tombol "Get Started"
+- Scroll ke section About, Features, Testimonials
+- Highlight animasi scroll progress di pojok kanan bawah
+
+Narasi: "ProjectPals adalah platform kolaborasi tim berbasis smart matching..."
+
+
+==================================================
+Scene 2: Register (0:30 - 1:00)
+==================================================
+Yang ditampilkan:
+1. Klik tombol "Get Started" atau "Register" di navbar
+2. Halaman auth terbuka -- tunjukkan animasi karakter di panel kiri (mata ikut kursor)
+3. Klik tab "Create Account"
+4. Isi form: Name, Username, Email, Password
+5. Klik Submit -- tampilkan animasi sukses
+6. Otomatis redirect ke Login atau Dashboard
+
+
+==================================================
+Scene 3: Login (1:00 - 1:20)
+==================================================
+Yang ditampilkan:
+1. Klik tab "Welcome Back"
+2. Isi Email & Password
+3. Centang "Remember me"
+4. Submit -- animasi sukses
+5. Masuk ke Dashboard
+
+
+==================================================
+Scene 4: Dashboard (1:20 - 1:50)
+==================================================
+Yang ditampilkan:
+- Perkenalkan layout: sidebar kiri, topbar, welcome greeting
+- Tunjukkan card "Create Room" dan "Join Room"
+- Tunjukkan section "Active Rooms" (mungkin masih kosong)
+- Klik-klik menu sidebar sekilas: My Rooms, History
+
+
+==================================================
+Scene 5: Create Room -- sebagai Owner (1:50 - 3:00)
+==================================================
+Yang ditampilkan:
+1. Klik "Create Room" di dashboard atau sidebar
+2. Isi form:
+   - Project Theme (contoh: "Mobile App Startup")
+   - Jumlah tim: 2
+   - Max member per tim: 3
+   - Roles: tambahkan "Frontend Dev", "Backend Dev", "UI/UX Designer"
+   - Productivity Windows: pilih Morning & Afternoon
+   - Work Environment: Online
+3. Submit -> tampilkan Success Screen (checkmark hijau animasi)
+4. Tampilkan Room Info: Room Code (contoh PP-4A2C) + tombol copy
+
+Tips: Zoom in ke room code lalu klik copy untuk efek dramatis
+
+
+==================================================
+Scene 6: Join Room -- sebagai Member lain (3:00 - 4:00)
+==================================================
+Gunakan akun kedua atau tunjukkan flow-nya dari perspektif teman
+
+Yang ditampilkan:
+1. Di Dashboard, isi input "Enter Room Code" -> klik Join
+   (atau masuk ke /join-room lalu masukkan kode)
+2. Step 1: Pilih Role -- pilih "Frontend Dev" sebagai primary
+3. Step 2: Pilih availability: Morning, Online
+4. Submit -> animasi konfirmasi sukses
+5. Room muncul di My Rooms
+
+
+==================================================
+Scene 7: Room Detail -- Owner Mengelola Member (4:00 - 4:45)
+==================================================
+Yang ditampilkan:
+1. Owner buka room detail -- lihat daftar members yang sudah join
+2. Tunjukkan info room (roles, settings)
+3. Coba klik Edit -> ubah salah satu setting -> Save
+4. Tunjukkan tombol "Remove Member" (tidak perlu ditekan)
+5. Klik "Start Matching" -> muncul konfirmasi dialog -> konfirmasi
+
+
+==================================================
+Scene 8: Matching Selesai -- Lihat Team (4:45 - 5:15)
+==================================================
+Yang ditampilkan:
+1. Room status berubah ke Ongoing
+2. Scroll ke bawah -- tampilkan team hasil matching
+3. Klik tim -> masuk ke Team Detail View
+4. Tunjukkan: anggota tim, role masing-masing, siapa leader (crown icon)
+
+
+==================================================
+Scene 9: Setup Project -- Team Leader (5:15 - 6:00)
+==================================================
+Yang ditampilkan:
+1. Sebagai Team Leader, klik "Edit Project Info"
+2. Isi:
+   - Project Name: "Pals Mobile App"
+   - Description: "Aplikasi kolaborasi mahasiswa..."
+   - Deadline: tanggal beberapa minggu ke depan
+3. Save -- info tampil di header tim
+
+Tambahkan Targets:
+1. Di section Targets, klik tombol tambah untuk role "Frontend Dev"
+2. Isi: Title "Buat halaman login", Deadline
+3. Tambah 1-2 target lagi untuk role lain
+
+
+==================================================
+Scene 10: Progress -- Centang Target (6:00 - 6:30)
+==================================================
+Yang ditampilkan:
+1. Klik checkbox pada target untuk toggle complete
+2. Tunjukkan progress bar bergerak naik
+3. Ulangi untuk beberapa target
+
+
+==================================================
+Scene 11: Feedback Antar Member (6:30 - 7:15)
+==================================================
+Yang ditampilkan:
+1. Scroll ke section Feedback
+2. Pilih member dari dropdown
+3. Klik bintang rating (misalnya 4 bintang)
+4. Tulis komentar singkat
+5. Submit feedback
+6. Tunjukkan Feedback Status Widget berubah (given/needed)
+7. Ulangi untuk member lain
+
+
+==================================================
+Scene 12: Selesaikan Project (7:15 - 7:45)
+==================================================
+Yang ditampilkan:
+1. Pastikan semua feedback terisi
+2. Klik "Mark Project as Complete" -> konfirmasi dialog
+3. Status berubah -- tampilkan animasi/transisi
+4. Room berpindah ke History
+
+
+==================================================
+Scene 13: History & Profile (7:45 - 8:15)
+==================================================
+Yang ditampilkan:
+1. Buka History di sidebar
+2. Tunjukkan: project selesai muncul, rating, feedback count
+3. Klik expand untuk lihat detail feedback diterima
+4. Buka Profile
+5. Tunjukkan: stats (rooms, teams, rata-rata rating), role ratings, recent projects
+
+
+==================================================
+Scene 14: Outro (8:15 - 8:30)
+==================================================
+- Kembali ke Dashboard
+- Sidebar navigasi di-hover sekilas
+- Fade out atau cut ke landing page
+
+
+==================================================
+TIPS PRODUKSI VIDEO
+==================================================
+Akun       : Siapkan 2-3 akun berbeda (owner + 2 members)
+Data       : Pre-fill data dummy agar tidak terlihat mengetik lama
+Resolusi   : Record 1920x1080, zoom in ke bagian penting
+Speed      : Normal speed untuk navigasi, percepat bagian mengisi form
+Narasi     : Bisa ditambahkan voice-over atau text caption per scene
+Durasi     : Target ~8 menit, cukup komprehensif tanpa terlalu panjang

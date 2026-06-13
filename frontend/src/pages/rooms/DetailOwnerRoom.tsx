@@ -273,7 +273,7 @@ export default function DetailOwnerRoom() {
           ]}
         />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
 
           {isLoading && (
             <div className="bg-pp-card border border-pp-border rounded-2xl px-6 py-12 text-center text-slate-500 text-sm">
@@ -342,7 +342,7 @@ export default function DetailOwnerRoom() {
                   </div>
 
                   {!editing && (
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                       <InfoBlock label="Roles">
                         <div className="flex flex-wrap gap-1.5">
                           {allRoles.length === 0
@@ -442,10 +442,10 @@ export default function DetailOwnerRoom() {
 
               {/* ── Bottom row (members + smart matching) — hidden when matched ──── */}
               {!isMatched && (
-              <div className="flex gap-5">
+              <div className="flex flex-col lg:flex-row gap-5">
 
                 {/* Members */}
-                <section className="flex-1 bg-pp-card border border-pp-border rounded-2xl p-5">
+                <section className="flex-1 min-w-0 bg-pp-card border border-pp-border rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-semibold text-white">Members in This Room</h2>
@@ -519,7 +519,7 @@ export default function DetailOwnerRoom() {
                 </section>
 
                 {/* Smart Matching */}
-                <aside className="w-72 shrink-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-5 flex flex-col relative overflow-hidden">
+                <aside className="w-full lg:w-72 lg:shrink-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-5 flex flex-col relative overflow-hidden">
                   <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
 
@@ -662,7 +662,7 @@ export default function DetailOwnerRoom() {
               </button>
             </div>
 
-            <div className="px-6 py-5 grid grid-cols-2 gap-5 overflow-y-auto">
+            <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-5 overflow-y-auto">
               <div className="col-span-2">
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1.5 font-medium">Project Theme</label>
                 <input

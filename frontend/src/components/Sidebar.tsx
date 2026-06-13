@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useMobileNav } from "../hooks/useMobileNav";
 
 interface NavItem {
   label: string;
@@ -79,12 +80,45 @@ const BOTTOM_NAV: NavItem[] = [
 ];
 
 export default function Sidebar({ activeNav, onNavClick, loggingOut, onLogout }: SidebarProps) {
+  const { isOpen, close } = useMobileNav();
+
+  // On mobile, picking a nav item should also dismiss the drawer.
+  const handleNav = (label: string) => {
+    onNavClick(label);
+    close();
+  };
+
   return (
-    <aside className="w-[230px] min-w-[230px] bg-pp-bg border-r border-pp-border flex flex-col py-6">
-      {/* Logo */}
-      <div className="px-6 pb-7">
-        <div className="font-bold text-[17px] text-white tracking-tight">ProjectPals</div>
-        <div className="text-[11px] text-slate-500 mt-0.5">Precision Collaboration</div>
+    <>
+      {/* Backdrop — mobile only, shown when the drawer is open */}
+      <div
+        onClick={close}
+        className={`fixed inset-0 z-40 bg-black/60 lg:hidden transition-opacity duration-200 ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        aria-hidden="true"
+      />
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[230px] min-w-[230px] bg-pp-bg border-r border-pp-border flex flex-col py-6 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+      {/* Logo + mobile close */}
+      <div className="px-6 pb-7 flex items-start justify-between">
+        <div>
+          <div className="font-bold text-[17px] text-white tracking-tight">ProjectPals</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Precision Collaboration</div>
+        </div>
+        <button
+          onClick={close}
+          aria-label="Close menu"
+          className="lg:hidden text-slate-500 hover:text-slate-300 transition-colors -mr-1 mt-0.5"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
       {/* Main nav */}
@@ -94,7 +128,7 @@ export default function Sidebar({ activeNav, onNavClick, loggingOut, onLogout }:
           return (
             <button
               key={item.label}
-              onClick={() => onNavClick(item.label)}
+              onClick={() => handleNav(item.label)}
               className={`relative flex items-center gap-3 px-3 py-[9px] rounded-lg text-sm w-full text-left transition-colors duration-150 ${
                 isActive
                   ? "bg-pp-active text-blue-500 font-semibold"
@@ -121,7 +155,7 @@ export default function Sidebar({ activeNav, onNavClick, loggingOut, onLogout }:
           return (
             <button
               key={item.label}
-              onClick={() => onNavClick(item.label)}
+              onClick={() => handleNav(item.label)}
               className={`relative flex items-center gap-3 px-3 py-[9px] rounded-lg text-sm w-full text-left transition-colors duration-150 ${
                 isActive
                   ? "bg-pp-active text-blue-500 font-semibold"
@@ -175,5 +209,6 @@ export default function Sidebar({ activeNav, onNavClick, loggingOut, onLogout }:
         </button>
       </div>
     </aside>
+    </>
   );
 }

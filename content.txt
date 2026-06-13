@@ -1,0 +1,109 @@
+Content :
+
+Bab 1. Pendahuluan
+Latar
+belakang
+Rumusan
+masalah
+Tujuan
+dan manfaat
+
+
+
+Bab 2. Konsep Dasar dan Teknologi Pendukung
+Penyakit
+glaukoma
+Flutter
+
+Laravel
+
+REST
+API
+AWS
+Cloud
+
+
+
+Bab 3. Analisis dan Perancangan Sistem
+Analisis
+kebutuhan
+Use
+case diagram
+Arsitektur
+sistem
+Desain
+database
+Desain
+antarmuka
+
+
+
+Bab 4. Pembangunan Backend Website Laravel
+Instalasi
+Laravel
+Pembuatan
+database
+REST
+API
+Dashboard
+admin
+Manajemen
+data pengguna dan hasil diagnosis
+
+
+
+Bab 5. Pembangunan Aplikasi Mobile Flutter
+Instalasi
+Flutter
+Desain
+UI
+Integrasi
+API Laravel
+Upload
+citra mata
+Menampilkan
+hasil diagnosis
+
+
+
+Bab 6. Implementasi Sistem Pengenalan Glaukoma
+Dataset
+citra retina
+Pengolahan
+citra
+Model
+klasifikasi
+Integrasi
+model dengan aplikasi
+
+
+
+Bab 7. Deployment Sistem pada AWS
+Deployment
+Laravel di AWS EC2
+Database
+AWS RDS
+Penyimpanan
+gambar pada AWS S3
+Keamanan
+dan monitoring
+
+
+
+Bab 8. Pengujian dan Evaluasi Sistem
+Pengujian
+aplikasi Flutter
+Pengujian
+website Laravel
+Pengujian
+API
+Evaluasi
+hasil deteksi
+
+
+
+Bab 9. Penutup
+Kesimpulan
+
+Saran
+pengembangan

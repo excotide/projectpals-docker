@@ -343,6 +343,12 @@ export default function AuthPage() {
         .success-pop { animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 
         ::placeholder { color: rgba(126,200,227,0.2); }
+
+        /* On phones, drop the illustrated panel and let the form fill the screen. */
+        @media (max-width: 768px) {
+          .auth-left { display: none !important; }
+          .auth-right { padding: 40px 24px 32px !important; }
+        }
       `}</style>
 
       {/* Full viewport wrapper — full screen split, no card */}
@@ -355,7 +361,7 @@ export default function AuthPage() {
       }}>
 
           {/* ── LEFT PANEL ── */}
-          <div className="left-in" style={{
+          <div className="left-in auth-left" style={{
             width: "42%",
             background: "#f0ede6",
             display: "flex",
@@ -416,7 +422,7 @@ export default function AuthPage() {
           </div>
 
           {/* ── RIGHT PANEL ── */}
-          <div style={{
+          <div className="auth-right" style={{
             flex: 1,
             background: "linear-gradient(150deg, #0f2030 0%, #0a1825 100%)",
             padding: "60px 72px 48px",

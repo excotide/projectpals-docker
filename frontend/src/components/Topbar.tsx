@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useMobileNav } from "../hooks/useMobileNav";
 
 type BreadcrumbItem = {
   label: string;
@@ -42,11 +43,22 @@ const IconSearch = () => (
 
 export default function Topbar({ initials, breadcrumbs }: TopbarProps) {
   const navigate = useNavigate();
+  const { open } = useMobileNav();
   const visibleCrumbs = breadcrumbs.filter((item) => item.label.trim().length > 0);
 
   return (
-    <header className="h-[60px] border-b border-pp-border flex items-center justify-between px-7 gap-6 bg-pp-bg shrink-0">
+    <header className="h-[60px] border-b border-pp-border flex items-center justify-between px-4 sm:px-7 gap-3 sm:gap-6 bg-pp-bg shrink-0">
       <div className="flex items-center gap-2 text-sm text-[#8892a4] min-w-0">
+        {/* Mobile hamburger — opens the sidebar drawer */}
+        <button
+          onClick={open}
+          aria-label="Open menu"
+          className="lg:hidden -ml-1 mr-1 p-1 text-slate-400 hover:text-slate-200 transition-colors shrink-0"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
         {visibleCrumbs.map((item, index) => (
           <div key={`${item.label}-${index}`} className="flex items-center gap-2 min-w-0">
             {item.to ? (
@@ -72,18 +84,18 @@ export default function Topbar({ initials, breadcrumbs }: TopbarProps) {
         ))}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center bg-pp-elevated border border-pp-border rounded-[24px] px-4 py-[7px] gap-2 w-[260px]">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <div className="hidden md:flex items-center bg-pp-elevated border border-pp-border rounded-[24px] px-4 py-[7px] gap-2 w-[180px] lg:w-[260px]">
           <IconSearch />
           <input
             placeholder="Search projects..."
-            className="bg-transparent border-none outline-none text-slate-400 text-[13px] flex-1 placeholder:text-slate-600"
+            className="bg-transparent border-none outline-none text-slate-400 text-[13px] flex-1 min-w-0 placeholder:text-slate-600"
           />
         </div>
-        <button className="bg-transparent border-none cursor-pointer text-slate-500 p-1 hover:text-slate-300 transition-colors">
+        <button className="hidden sm:block bg-transparent border-none cursor-pointer text-slate-500 p-1 hover:text-slate-300 transition-colors">
           <IconBell />
         </button>
-        <button className="bg-transparent border-none cursor-pointer text-slate-500 p-1 hover:text-slate-300 transition-colors">
+        <button className="hidden sm:block bg-transparent border-none cursor-pointer text-slate-500 p-1 hover:text-slate-300 transition-colors">
           <IconHelp />
         </button>
         <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-[13px] font-bold text-white cursor-pointer border-2 border-blue-600">
