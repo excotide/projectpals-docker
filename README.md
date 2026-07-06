@@ -12,7 +12,7 @@ Panduan ini menjelaskan cara menjalankan seluruh stack ProjectPals menggunakan D
 - `node`: Vite dev server untuk backend Laravel (port 5174)
 - `frontend`: React + Vite (port 5173)
 
-## Prasyarat
+## Prasyarat /
 
 - Docker Desktop terpasang dan aktif
 - Docker Compose (sudah include di Docker Desktop modern)
